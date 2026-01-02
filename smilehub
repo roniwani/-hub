@@ -1,0 +1,166 @@
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+-- 設定値
+local NEARBY_RANGE = 25 -- プレイヤーを「近く」と判定する距離 (Studs)
+local GRAB_INTERVAL = 0.5 -- 掴み・解放を繰り返す間隔 (秒)
+local blobalter = 1 -- 左右の検出器を交互に使用
+
+-- イベントパスの確認 (ゲーム内のパスと一致していることを確認してください)
+local GrabEvents = ReplicatedStorage:FindFirstChild("GrabEvents")
+local CreatureEvents = ReplicatedStorage:FindFirstChild("CreatureEvents")
+local tossEvent = CreatureEvents and CreatureEvents:FindFirstChild("CreatureToss")
+local endGrabEvent = GrabEvents and GrabEvents:FindFirstChild("EndGrabEarly")
+
+-- コルーチンと状態管理
+local ForceGrabCoroutine = nil
+local uiToggle = nil 
+
+-- Rayfield UIのロード
+local RayfieldSuccess, Rayfield = pcall(function()
+    return loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+end)
+
+if not RayfieldSuccess or not Rayfield then 
+    warn("❌ Rayfield UI ロード失敗。スクリプトが続行できません。")
+    return
+end
+
+-- 補助関数: 指定したオブジェクトが親の下にあるか確認
+local function isDescendantOf(descendant, ancestor)
+    while descendant and descendant ~= ancestor and descendant.Parent do
+        descendant = descendant.Parent
+    end
+    return descendant == ancestor
+end
+
+-- Blobmanモデルの特定（プレイヤーが乗車している必要があります）
+local function findActiveBlobman()
+    for _, v in pairs(Workspace:GetDescendants()) do
+        if v.Name == "CreatureBlobman" and v:FindFirstChild("VehicleSeat") and v.VehicleSeat:FindFirstChild("SeatWeld") then
+            if LocalPlayer.Character and isDescendantOf(v.VehicleSeat.SeatWeld.Part1, LocalPlayer.Character) then
+                return v
+            end
+        end
+    end
+    return nil
+end
+
+-- プレイヤーを掴むイベントを発火させる
+local function blobGrabPlayer(player, blobman)
+    if not player or not player.Character or not blobman then return end
+    local targetHRP = player.Character:FindFirstChild("HumanoidRootPart")
+    if not targetHRP then return end
+    
+    -- 左右の検出器を交互に使用
+    local grabPart = blobalter == 1 and blobman:FindFirstChild("LeftDetector") or blobman:FindFirstChild("RightDetector")
+    local weldPart = grabPart and grabPart:FindFirstChild(blobalter == 1 and "LeftWeld" or "RightWeld")
+    blobalter = blobalter == 1 and 2 or 1 
+
+    if grabPart and weldPart and blobman:FindFirstChild("BlobmanSeatAndOwnerScript") then
+        local grabEvent = blobman.BlobmanSeatAndOwnerScript:FindFirstChild("CreatureGrab")
+        if grabEvent then
+            local args = {[1] = grabPart, [2] = targetHRP, [3] = weldPart}
+            pcall(function() grabEvent:FireServer(unpack(args)) end)
+        end
+    end
+end
+
+-- 自動掴みループを停止する関数
+local function stopForcedGrab()
+    if ForceGrabCoroutine then coroutine.close(ForceGrabCoroutine) ForceGrabCoroutine = nil end
+    if uiToggle and uiToggle.CurrentValue then 
+        uiToggle:SetValue(false) 
+    end
+    Rayfield:Notify({Title = "✅ 停止", Content = "自動掴み連打を停止しました。", Duration = 2})
+end
+
+-- 自動掴みループを開始
+local function startForcedGrab()
+    if ForceGrabCoroutine then coroutine.close(ForceGrabCoroutine) end
+    
+    local blobmanModel = findActiveBlobman()
+    if not blobmanModel then
+        Rayfield:Notify({Title = "❌ ERROR", Content = "ブロングマンに乗車していません。", Duration = 3})
+        return false
+    end
+    
+    Rayfield:Notify({Title = "✅ 起動", Content = string.format("近くのプレイヤーを %.1f秒毎に掴み連打を開始しました。", GRAB_INTERVAL), Duration = 3})
+
+    -- 掴みループ
+    ForceGrabCoroutine = coroutine.create(function()
+        while true do
+            local targets = {}
+            local HRP = LocalPlayer.Character and LocalPlayer.Character.HumanoidRootPart
+            
+            if HRP then
+                for _, player in ipairs(Players:GetChildren()) do
+                    if player ~= LocalPlayer and player.Character then
+                        local targetHRP = player.Character:FindFirstChild("HumanoidRootPart")
+                        if targetHRP and (targetHRP.Position - HRP.Position).Magnitude < NEARBY_RANGE then
+                            -- 近くにいる自分以外のプレイヤーのみを対象とする
+                            table.insert(targets, player)
+                        end
+                    end
+                end
+            end
+
+            -- ターゲット全員に掴みイベントを発火
+            for _, player in ipairs(targets) do
+                coroutine.wrap(function() blobGrabPlayer(player, blobmanModel) end)()
+            end
+
+            -- 掴んですぐに離すイベントを連打 (掴み動作を強制終了させる)
+            if tossEvent then pcall(function() tossEvent:FireServer() end) end
+            if endGrabEvent then pcall(function() endGrabEvent:FireServer() end) end
+            
+            -- 0.5秒待機
+            wait(GRAB_INTERVAL)
+        end
+    end)
+    coroutine.resume(ForceGrabCoroutine)
+    return true
+end
+
+
+-- UIの定義と起動
+local function createKickMenu()
+    local Window = Rayfield:CreateWindow({
+        Name = "🤖 自動掴みスクリプト (Auto Grab Nearby)",
+        Icon = 0, 
+        LoadingTitle = "BLOBMAN AUTO GRAB READY", 
+        LoadingSubtitle = "自動掴み機能をアクティベート", 
+        ShowText = "AUTO GRAB", 
+        Theme = "Default", 
+        ToggleUIKeybind = "L", 
+        ConfigurationSaving = {Enabled = false}, 
+        KeySystem = false,
+    })
+
+    local KickTab = Window:CreateTab("欄1:自動掴み設定", 10427807755)
+
+    KickTab:CreateSection("ブロングマン制御 (要乗車)")
+    uiToggle = KickTab:CreateToggle({
+        Name = string.format("ON/OFF: 近くのプレイヤー掴み (%s秒間隔)", GRAB_INTERVAL),
+        CurrentValue = false,
+        Callback = function(e)
+            if e then
+                if not startForcedGrab() then 
+                    stopForcedGrab()
+                end
+            else
+                stopForcedGrab()
+            end
+        end
+    })
+    
+    KickTab:CreateParagraph({
+        Title = "❗ 現在の設定",
+        Content = string.format("インターバル: **%.1f秒**\n検出範囲: **%dスタッド**以内", GRAB_INTERVAL, NEARBY_RANGE)
+    })
+end
+
+createKickMenu()
