@@ -1,0 +1,309 @@
+--smilehub
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local Players = game:GetService("Players")
+local LP = Players.LocalPlayer
+
+-- 指定されたソースコードからOrionをロード
+local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/jadpy/suki/refs/heads/main/orion"))()
+
+-- ウィンドウ作成
+local Window = OrionLib:MakeWindow({
+Name = "FTAPsmilehub V2.5",
+HidePremium = false,
+SaveConfig = true,
+ConfigFolder = "OrionTest"
+})
+
+
+---
+
+-- レインボーライン機能のロジック (smilehub)
+
+local originalColors
+if ReplicatedStorage:FindFirstChild("DataEvents") and ReplicatedStorage.DataEvents:FindFirstChild("UpdateLineColorsEvent") then
+originalColors = {}
+for i = 1, 10 do
+table.insert(originalColors, Color3.new(1,1,1))
+end
+end
+
+local ToggleState = false
+local hueOffset = 0
+
+local function FireRainbowColors()
+if ReplicatedStorage:FindFirstChild("DataEvents") and ReplicatedStorage.DataEvents:FindFirstChild("UpdateLineColorsEvent") then
+local cs = ColorSequence.new{
+ColorSequenceKeypoint.new(0, Color3.fromHSV((0+hueOffset)%1,1,1)),
+ColorSequenceKeypoint.new(0.1, Color3.fromHSV((0.1+hueOffset)%1,1,1)),
+ColorSequenceKeypoint.new(0.2, Color3.fromHSV((0.2+hueOffset)%1,1,1)),
+ColorSequenceKeypoint.new(0.3, Color3.fromHSV((0.3+hueOffset)%1,1,1)),
+ColorSequenceKeypoint.new(0.4, Color3.fromHSV((0.4+hueOffset)%1,1,1)),
+ColorSequenceKeypoint.new(0.5, Color3.fromHSV((0.5+hueOffset)%1,1,1)),
+ColorSequenceKeypoint.new(0.6, Color3.fromHSV((0.6+hueOffset)%1,1,1)),
+ColorSequenceKeypoint.new(0.7, Color3.fromHSV((0.7+hueOffset)%1,1,1)),
+ColorSequenceKeypoint.new(0.8, Color3.fromHSV((0.8+hueOffset)%1,1,1)),
+ColorSequenceKeypoint.new(0.9, Color3.fromHSV((0.9+hueOffset)%1,1,1)),
+ColorSequenceKeypoint.new(1, Color3.fromHSV((1+hueOffset)%1,1,1))
+}
+ReplicatedStorage.DataEvents.UpdateLineColorsEvent:FireServer(cs, cs.Keypoints[1].Value, cs.Keypoints[2].Value, cs.Keypoints[3].Value, cs.Keypoints[4].Value, cs.Keypoints[5].Value, cs.Keypoints[6].Value, cs.Keypoints[7].Value, cs.Keypoints[8].Value, cs.Keypoints[9].Value)
+end
+end
+
+RunService.Heartbeat:Connect(function()
+if ToggleState then
+hueOffset = (hueOffset + 0.005) % 1
+FireRainbowColors()
+end
+end)
+
+
+---
+
+-- 翼MOD 機能のロジック (WINGS MOD)
+
+local Enabled = false
+local Spacing = 0.0
+local WingHeight = 2.0  -- 中心に寄せるため高さを下げました（デフォルト20から修正）
+local BackOffset = 0.5  -- 体に密着させるため0.5に調整
+local SideOffset = 0.0
+local WaveAmplitude = 2.5
+local WaveSpeed = 5.0
+local TwistAngle = 20.0
+local TwistSpeed = 5.0
+local TwistWave = 0.5
+local TargetSet = "Sparkler"
+local defaultMaxZoom = 12
+local maxZoom5000Enabled = false
+
+local TargetSets = {
+["GlassBox"] = {"GlassBoxGray"},
+["Pallet"] = {"PalletLightBrown"},
+["Sparkler"] = {"FireworkSparkler"},
+["Toilet"] = {"ToiletWhite","ToiletGold"},
+["Piano"] = {"KeyboardPart", "MusicKeyboard"},
+["Stick"] = {"Stick"} -- Stickを追加
+}
+
+local list, loopConn = {}, nil
+local tAccum = 0
+
+local function HRP()
+local c = LP.Character or LP.CharacterAdded:Wait()
+return c:FindFirstChild("HumanoidRootPart")
+end
+local function getPartFromModel(m)
+if m.PrimaryPart then return m.PrimaryPart end
+return m:FindFirstChildWhichIsA("BasePart")
+end
+local function nameInTargets(n)
+local t = TargetSets[TargetSet]
+if not t then return false end
+for _, nm in ipairs(t) do if n == nm then return true end end
+return false
+end
+
+local function attachPhysics(rec)
+local model = rec.model; local part = rec.part
+if not model or not part or not part.Parent then return end
+for _, p in ipairs(model:GetDescendants()) do
+if p:IsA("BasePart") and not p:IsA("BodyMover") then
+pcall(function() p:SetNetworkOwner(LP) end)
+p.CanCollide, p.CanTouch = false, false
+end
+end
+if not part:FindFirstChild("BodyVelocity") then
+local bv = Instance.new("BodyVelocity", part); bv.Name = "BodyVelocity"; bv.MaxForce = Vector3.new(1e8,1e8,1e8); bv.Velocity = Vector3.new(); bv.P = 1e6
+end
+if not part:FindFirstChild("BodyGyro") then
+local bg = Instance.new("BodyGyro", part); bg.Name = "BodyGyro"; bg.MaxTorque = Vector3.new(1e8,1e8,1e8); bg.CFrame = part.CFrame; bg.P = 1e6
+end
+end
+
+local function detachPhysics(rec)
+local model = rec.model; local part = rec.part
+if not model or not part then return end
+if part:FindFirstChild("BodyVelocity") then part.BodyVelocity:Destroy() end
+if part:FindFirstChild("BodyGyro") then part.BodyGyro:Destroy() end
+for _, p in ipairs(model:GetDescendants()) do
+if p:IsA("BasePart") and not p:IsA("BodyMover") then
+p.CanCollide, p.CanTouch = true, true
+pcall(function() p:SetNetworkOwner(nil) end)
+end
+end
+end
+
+local function rescan()
+for _,r in ipairs(list) do detachPhysics(r) end
+list = {}
+for _, d in ipairs(Workspace:GetDescendants()) do
+if d:IsA("Model") and nameInTargets(d.Name) then
+local part = getPartFromModel(d)
+if part and not part.Anchored then table.insert(list, {model=d, part=part}) end
+elseif d:IsA("BasePart") and nameInTargets(d.Name) then -- パーツ単体にも対応
+if not d.Anchored then table.insert(list, {model=d, part=d}) end
+end
+end
+for i = 1, #list do attachPhysics(list[i]) end
+end
+
+local function startLoop()
+if loopConn then loopConn:Disconnect() end
+tAccum = 0
+loopConn = RunService.Heartbeat:Connect(function(dt)
+local root = HRP()
+if not root or #list == 0 then return end
+tAccum = tAccum + dt
+-- 自分の中心に寄せるためのCFrame調整
+local wingsCenter = root.CFrame * CFrame.new(SideOffset, WingHeight, BackOffset)
+local WaveConstant = math.pi / #list
+for j = 1, #list do
+local rec = list[j]; local p = rec.part
+if p and p.Parent then
+local isRight = (j % 2 == 0); local sign = isRight and 1 or -1
+local animationIndex = math.ceil(j / 2)
+local distanceIndex = isRight and (j - 2) / 2 or (j - 1) / 2
+
+-- Spacingが0に近いほど中心に集まる  
+            local xOffset = Spacing * (distanceIndex + 0.2) * sign   
+            local waveOffset = WaveAmplitude * math.sin(WaveSpeed * tAccum + animationIndex * WaveConstant)  
+            local twistOscillation = math.sin(TwistSpeed * tAccum + animationIndex * TwistWave)  
+            local currentTwistAngle = math.rad(TwistAngle * twistOscillation * (distanceIndex / (#list / 2)))   
+              
+            local targetCFrame = wingsCenter * CFrame.Angles(currentTwistAngle, 0, 0) * CFrame.new(xOffset, waveOffset, 0)  
+            if p:FindFirstChild("BodyVelocity") then p.BodyVelocity.Velocity = (targetCFrame.Position - p.Position) * 20 end  
+            if p:FindFirstChild("BodyGyro") then p.BodyGyro.CFrame = targetCFrame end  
+        end  
+    end  
+end)
+
+end
+
+
+---
+
+-- タブ構成
+
+-- 情報タブ
+local InfoTab = Window:MakeTab({
+Name = "情報",
+Icon = "rbxassetid://4483345998",
+PremiumOnly = false
+})
+
+InfoTab:AddLabel("Credit: BGHACKERS / Logfeetst")
+
+InfoTab:AddButton({
+Name = "Discordリンクをコピー",
+Callback = function()
+setclipboard("https://discord.gg/zXfmQmVed")
+OrionLib:MakeNotification({Name = "コピー完了", Content = "リンクをコピーしたぜ、マスター。", Time = 3})
+end
+})
+
+-- レインボータブ
+local LineTab = Window:MakeTab({
+Name = "Line Color",
+Icon = "rbxassetid://4483345998",
+PremiumOnly = false
+})
+
+LineTab:AddToggle({
+Name = "Rainbow Lines (FTAP ONLY)",
+Default = false,
+Callback = function(Value)
+ToggleState = Value
+if not Value and originalColors then
+ReplicatedStorage.DataEvents.UpdateLineColorsEvent:FireServer(originalColors[1],originalColors[2],originalColors[3],originalColors[4],originalColors[5],originalColors[6],originalColors[7],originalColors[8],originalColors[9],originalColors[10])
+end
+end
+})
+
+-- テレポートタブ
+local TPTab = Window:MakeTab({
+Name = "テレポート",
+Icon = "rbxassetid://4483345998",
+PremiumOnly = false
+})
+
+local function Teleport(coords)
+local player = game.Players.LocalPlayer
+if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+player.Character.HumanoidRootPart.CFrame = CFrame.new(coords)
+end
+end
+
+TPTab:AddSection({Name = "各拠点への移動"})
+TPTab:AddButton({ Name = "ピンクの家にテレポート", Callback = function() Teleport(Vector3.new(-481.23, -7.35, -149.67)) end })
+TPTab:AddButton({ Name = "緑の家にテレポート", Callback = function() Teleport(Vector3.new(-546.02, -7.35, 78.07)) end })
+TPTab:AddButton({ Name = "赤い家にテレポート", Callback = function() Teleport(Vector3.new(542.11, 123.34, -91.78)) end })
+TPTab:AddButton({ Name = "水色の家にテレポート", Callback = function() Teleport(Vector3.new(496.99, 83.34, -350.96)) end })
+
+-- 翼MODタブ
+local WingTab = Window:MakeTab({
+Name = "WINGS",
+Icon = "rbxassetid://6031075927",
+PremiumOnly = false
+})
+
+WingTab:AddDropdown({
+Name = "ターゲット選択",
+Default = TargetSet,
+Options = {"Stick", "Sparkler","Toilet", "Piano", "GlassBox", "Pallet"},
+Callback = function(v) TargetSet = v; if Enabled then rescan() end end
+})
+
+WingTab:AddToggle({
+Name = "羽起動/停止",
+Default = false,
+Callback = function(v)
+Enabled = v
+if v then rescan(); startLoop() else if loopConn then loopConn:Disconnect() end; for _,rec in ipairs(list) do detachPhysics(rec) end; list = {} end
+end
+})
+
+WingTab:AddButton({
+Name = "Fly GUI v3 起動",
+Callback = function()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/XNEOFF/FlyGuiV3/main/FlyGuiV3.txt"))()
+end
+})
+
+WingTab:AddSlider({ Name = "翼の広さ (Spacing)", Min = 0, Max = 5, Default = 0.2, Increment = 0.1, Callback = function(v) Spacing = v end })
+WingTab:AddSlider({ Name = "翼の高さ (Height)", Min = -10, Max = 100, Default = 2, Increment = 1, Callback = function(v) WingHeight = v end })
+
+WingTab:AddToggle({
+Name = "カメラズーム 2000",
+Default = false,
+Callback = function(v)
+maxZoom5000Enabled = v
+LP.CameraMaxZoomDistance = v and 5000 or defaultMaxZoom
+end
+})
+
+OrionLib:Init()
+LP.CameraMode = Enum.CameraMode.Classic
+LP.CameraMinZoomDistance = 0.5
+
+-- ESP 機能（追加のみ・既存コード不干渉）
+
+local ESPEnabled = false
+local ESPObjects = {}
+
+local function getHeadshot(userId)
+return "https://www.roblox.com/headshot-thumbnail/image?userId="
+.. userId .. "&width=150&height=150&format=png"
+end
+
+local function createESP(player)
+if player == LP then return end
+if ESPObjects[player] then return end
+
+local gui = Instance.new("BillboardGui")  
+gui.Name = "TPHubESP"  
+gui.Size = UDim2.new(0, 220, 0, 90)  
+gui.StudsOffset = Vector3.new(0, 2.5, 0)  
+gui.AlwaysOnTop = true  
+
+local frame = I
