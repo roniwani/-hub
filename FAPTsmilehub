@@ -197,7 +197,7 @@ InfoTab:AddLabel("Credit: BGHACKERS / Logfeetst")
 InfoTab:AddButton({
 Name = "Discordリンクをコピー",
 Callback = function()
-setclipboard("https://discord.gg/zXfmQmVed")
+setclipboard("https://discord.gg/27Zrg66yB")
 OrionLib:MakeNotification({Name = "コピー完了", Content = "リンクをコピーしたぜ、マスター。", Time = 3})
 end
 })
@@ -306,4 +306,244 @@ gui.Size = UDim2.new(0, 220, 0, 90)
 gui.StudsOffset = Vector3.new(0, 2.5, 0)  
 gui.AlwaysOnTop = true  
 
-local frame = I
+local frame = Instance.new("Frame")  
+frame.Size = UDim2.new(1, 0, 1, 0)  
+frame.BackgroundColor3 = Color3.fromRGB(20,20,20)  
+frame.BackgroundTransparency = 0.2  
+frame.BorderSizePixel = 1  
+frame.Parent = gui  
+
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)  
+
+local img = Instance.new("ImageLabel")  
+img.Size = UDim2.new(0, 64, 0, 64)  
+img.Position = UDim2.new(0, 6, 0, 12)  
+img.BackgroundTransparency = 1  
+img.Image = getHeadshot(player.UserId)  
+img.Parent = frame  
+
+local nameLabel = Instance.new("TextLabel")  
+nameLabel.Position = UDim2.new(0, 80, 0, 18)  
+nameLabel.Size = UDim2.new(1, -90, 0, 22)  
+nameLabel.BackgroundTransparency = 1  
+nameLabel.Text = player.DisplayName  
+nameLabel.TextColor3 = Color3.new(1,1,1)  
+nameLabel.TextScaled = true  
+nameLabel.Font = Enum.Font.GothamBold  
+nameLabel.Parent = frame  
+
+local idLabel = Instance.new("TextLabel")  
+idLabel.Position = UDim2.new(0, 80, 0, 42)  
+idLabel.Size = UDim2.new(1, -90, 0, 20)  
+idLabel.BackgroundTransparency = 1  
+idLabel.Text = "ID : "..player.UserId  
+idLabel.TextColor3 = Color3.fromRGB(180,180,180)  
+idLabel.TextScaled = true  
+idLabel.Font = Enum.Font.Gotham  
+idLabel.Parent = frame  
+
+ESPObjects[player] = gui  
+
+local function attach()  
+    if player.Character and player.Character:FindFirstChild("Head") then  
+        gui.Parent = player.Character.Head  
+    end  
+end  
+
+attach()  
+player.CharacterAdded:Connect(function()  
+    task.wait(1)  
+    attach()  
+end)
+
+end
+
+local function removeAllESP()
+for _, gui in pairs(ESPObjects) do
+if gui then gui:Destroy() end
+end
+ESPObjects = {}
+end
+
+Players.PlayerAdded:Connect(function(player)
+if ESPEnabled then
+createESP(player)
+end
+end)
+
+
+---
+
+-- ESP タブ（追加のみ）
+
+local ESPTab = Window:MakeTab({
+Name = "ESP",
+Icon = "rbxassetid://4483345998",
+PremiumOnly = false
+})
+
+ESPTab:AddToggle({
+Name = "ESP 有効（名前 / ID / 顔）",
+Default = false,
+Callback = function(value)
+ESPEnabled = value
+if value then
+for _, player in ipairs(Players:GetPlayers()) do
+createESP(player)
+end
+else
+removeAllESP()
+end
+end
+})-------------------------------------------------------------------
+-- WINGS 回転機能（完全追加・既存コード不干渉）
+
+local SpinEnabled = false
+local SpinSpeed = 10 -- デフォルト10（最大20）
+
+-- 自キャラ高速右回転
+RunService.Heartbeat:Connect(function()
+if not SpinEnabled then return end
+local char = LP.Character
+local hrp = char and char:FindFirstChild("HumanoidRootPart")
+if hrp then
+hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(SpinSpeed), 0)
+end
+end)
+
+-- WINGS タブにUI追加（他は一切変更しない）
+WingTab:AddToggle({
+Name = "回転（右スピン）",
+Default = false,
+Callback = function(v)
+SpinEnabled = v
+end
+})
+
+WingTab:AddSlider({
+Name = "回転スピード",
+Min = 1,
+Max = 20,
+Default = 10,
+Increment = 1,
+Callback = function(v)
+SpinSpeed = v
+end
+})
+
+-- WINGS 対象プレイヤー選択（完全追加）
+
+local WingsTargetPlayer = nil
+local WingsTargetEnabled = false
+local targetLoopConn = nil
+
+-- プレイヤー名リスト取得
+local function getPlayerNameList()
+local t = {"自分"}
+for _, plr in ipairs(Players:GetPlayers()) do
+if plr ~= LP then
+table.insert(t, plr.Name)
+end
+end
+return t
+end
+
+local function getTargetHRP()
+if not WingsTargetEnabled or not WingsTargetPlayer then
+return HRP()
+end
+if WingsTargetPlayer.Character then
+return WingsTargetPlayer.Character:FindFirstChild("HumanoidRootPart")
+end
+return nil
+end
+
+-- 対象用Wingsループ（既存Wingsとは完全別）
+local function startTargetLoop()
+if targetLoopConn then targetLoopConn:Disconnect() end
+targetLoopConn = RunService.Heartbeat:Connect(function(dt)
+local root = getTargetHRP()
+if not root or #list == 0 then return end
+
+tAccum = tAccum + dt  
+    local wingsCenter = root.CFrame * CFrame.new(SideOffset, WingHeight, BackOffset)  
+    local WaveConstant = math.pi / #list  
+
+    for j = 1, #list do  
+        local rec = list[j]  
+        local p = rec.part  
+        if p and p.Parent then  
+            local isRight = (j % 2 == 0)  
+            local sign = isRight and 1 or -1  
+            local animationIndex = math.ceil(j / 2)  
+            local distanceIndex = isRight and (j - 2) / 2 or (j - 1) / 2  
+
+            local xOffset = Spacing * (distanceIndex + 0.2) * sign  
+            local waveOffset = WaveAmplitude * math.sin(WaveSpeed * tAccum + animationIndex * WaveConstant)  
+            local twistOscillation = math.sin(TwistSpeed * tAccum + animationIndex * TwistWave)  
+            local currentTwistAngle = math.rad(TwistAngle * twistOscillation)  
+
+            local targetCFrame =  
+                wingsCenter  
+                * CFrame.Angles(currentTwistAngle, 0, 0)  
+                * CFrame.new(xOffset, waveOffset, 0)  
+
+            if p:FindFirstChild("BodyVelocity") then  
+                p.BodyVelocity.Velocity = (targetCFrame.Position - p.Position) * 20  
+            end  
+            if p:FindFirstChild("BodyGyro") then  
+                p.BodyGyro.CFrame = targetCFrame  
+            end  
+        end  
+    end  
+end)
+
+end
+
+
+---
+
+-- WINGS 吸着修正（HRP再定義・既存コード完全不干渉）
+
+local WingsTargetPlayer = nil
+
+-- HRP を再定義（Lua仕様で上書き）
+function HRP()
+-- 他人が選択されている場合
+if WingsTargetPlayer
+and WingsTargetPlayer.Character
+and WingsTargetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+
+return WingsTargetPlayer.Character.HumanoidRootPart  
+end  
+
+-- デフォルト（自分）  
+local c = LP.Character or LP.CharacterAdded:Wait()  
+return c:FindFirstChild("HumanoidRootPart")
+
+end
+
+-- プレイヤー一覧
+local function getPlayerList()
+local t = {"自分"}
+for _, plr in ipairs(Players:GetPlayers()) do
+if plr ~= LP then
+table.insert(t, plr.Name)
+end
+end
+return t
+end
+
+-- WINGS タブに対象選択を追加
+WingTab:AddDropdown({
+Name = "WINGS 対象プレイヤー",
+Default = "自分",
+Options = getPlayerList(),
+Callback = function(v)
+if v == "自分" then
+WingsTargetPlayer = nil
+else
+WingsTargetPlayer = Players:FindFirstChild(v)
+end
+end
+})
