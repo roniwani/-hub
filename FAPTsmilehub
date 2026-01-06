@@ -547,3 +547,130 @@ WingsTargetPlayer = Players:FindFirstChild(v)
 end
 end
 })
+--[[
+	Project: ORION
+	Module: Auto-Grab Logic
+	Description: 外部UIライブラリ非依存の完結型ソースコード
+]]
+
+local Orion = {}
+
+-- ==========================================
+-- 1. 設定セクション (Config)
+-- ==========================================
+Orion.Settings = {
+	Enabled = false,        -- 動作状態
+	Range = 25,             -- 検出距離 (Studs)
+	Interval = 0.5,         -- ループ速度 (秒)
+	_sideToggle = 1         -- 左右切り替え用内部変数
+}
+
+-- ==========================================
+-- 2. 依存関係の取得 (Dependencies)
+-- ==========================================
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- リモートイベントのセットアップ
+local CreatureEvents = ReplicatedStorage:FindFirstChild("CreatureEvents")
+local GrabEvents = ReplicatedStorage:FindFirstChild("GrabEvents")
+local TossEvent = CreatureEvents and CreatureEvents:FindFirstChild("CreatureToss")
+local EndGrabEvent = GrabEvents and GrabEvents:FindFirstChild("EndGrabEarly")
+
+-- ==========================================
+-- 3. 補助関数 (Utility Functions)
+-- ==========================================
+
+-- 現在乗っているブロングマンを取得
+local function getActiveMachine()
+	for _, obj in pairs(Workspace:GetDescendants()) do
+		if obj.Name == "CreatureBlobman" and obj:FindFirstChild("VehicleSeat") then
+			local seatWeld = obj.VehicleSeat:FindFirstChild("SeatWeld")
+			if seatWeld and LocalPlayer.Character and seatWeld.Part1:IsDescendantOf(LocalPlayer.Character) then
+				return obj
+			end
+		end
+	end
+	return nil
+end
+
+-- 掴みアクションの実行
+local function executeGrabAction(target, machine)
+	if not target.Character or not machine then return end
+	local targetHRP = target.Character:FindFirstChild("HumanoidRootPart")
+	if not targetHRP then return end
+	
+	-- 左右の検出器を交互に選択
+	local side = Orion.Settings._sideToggle == 1 and "Left" or "Right"
+	local detector = machine:FindFirstChild(side .. "Detector")
+	local weld = detector and detector:FindFirstChild(side .. "Weld")
+	
+	-- 次回のためにフラグを反転
+	Orion.Settings._sideToggle = (Orion.Settings._sideToggle == 1) and 2 or 1 
+
+	-- サーバーへイベント送信
+	local grabScript = machine:FindFirstChild("BlobmanSeatAndOwnerScript")
+	if grabScript and grabScript:FindFirstChild("CreatureGrab") then
+		pcall(function()
+			grabScript.CreatureGrab:FireServer(detector, targetHRP, weld)
+		end)
+	end
+end
+
+-- ==========================================
+-- 4. メインロジック (Main Logic)
+-- ==========================================
+
+-- システム停止
+function Orion.Stop()
+	Orion.Settings.Enabled = false
+	print("[ORION] System Paused.")
+end
+
+-- システム開始
+function Orion.Start()
+	if Orion.Settings.Enabled then return end
+	
+	local machine = getActiveMachine()
+	if not machine then
+		warn("[ORION] Error: Blobman not found. Please sit in a seat first.")
+		return
+	end
+
+	Orion.Settings.Enabled = true
+	print("[ORION] System Active. Scanning for targets...")
+
+	task.spawn(function()
+		while Orion.Settings.Enabled do
+			local char = LocalPlayer.Character
+			local hrp = char and char:FindFirstChild("HumanoidRootPart")
+			
+			if hrp then
+				for _, p in ipairs(Players:GetPlayers()) do
+					if p ~= LocalPlayer and p.Character then
+						local tHRP = p.Character:FindFirstChild("HumanoidRootPart")
+						if tHRP and (tHRP.Position - hrp.Position).Magnitude < Orion.Settings.Range then
+							-- 効率化のため非同期で実行
+							task.spawn(executeGrabAction, p, machine)
+						end
+					end
+				end
+			end
+
+			-- 掴み状態の強制更新 (連打用)
+			if TossEvent then pcall(function() TossEvent:FireServer() end) end
+			if EndGrabEvent then pcall(function() EndGrabEvent:FireServer() end) end
+			
+			task.wait(Orion.Settings.Interval)
+		end
+	end)
+end
+
+-- ==========================================
+-- 5. 実行開始 (Execution)
+-- ==========================================
+Orion.Start()
+
+return Orion
