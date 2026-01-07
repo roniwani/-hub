@@ -17,7 +17,7 @@ ConfigFolder = "OrionTest"
 })
 
 
----
+--
 
 -- レインボーライン機能のロジック (smilehub)
 
@@ -181,7 +181,6 @@ end)
 end
 
 
----
 
 -- タブ構成
 
