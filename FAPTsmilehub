@@ -548,129 +548,218 @@ end
 end
 })
 --[[
-	Project: ORION
-	Module: Auto-Grab Logic
-	Description: 外部UIライブラリ非依存の完結型ソースコード
-]]
+-- ===== Blobman Auto Grab（Orion / 全員・距離無視）=====
 
-local Orion = {}
-
--- ==========================================
--- 1. 設定セクション (Config)
--- ==========================================
-Orion.Settings = {
-	Enabled = false,        -- 動作状態
-	Range = 25,             -- 検出距離 (Studs)
-	Interval = 0.5,         -- ループ速度 (秒)
-	_sideToggle = 1         -- 左右切り替え用内部変数
-}
-
--- ==========================================
--- 2. 依存関係の取得 (Dependencies)
--- ==========================================
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- リモートイベントのセットアップ
-local CreatureEvents = ReplicatedStorage:FindFirstChild("CreatureEvents")
+local GRAB_INTERVAL = 0.5
+local blobalter = 1
+local ForceGrabCoroutine = nil
+
+-- Events
 local GrabEvents = ReplicatedStorage:FindFirstChild("GrabEvents")
-local TossEvent = CreatureEvents and CreatureEvents:FindFirstChild("CreatureToss")
-local EndGrabEvent = GrabEvents and GrabEvents:FindFirstChild("EndGrabEarly")
+local CreatureEvents = ReplicatedStorage:FindFirstChild("CreatureEvents")
+local tossEvent = CreatureEvents and CreatureEvents:FindFirstChild("CreatureToss")
+local endGrabEvent = GrabEvents and GrabEvents:FindFirstChild("EndGrabEarly")
 
--- ==========================================
--- 3. 補助関数 (Utility Functions)
--- ==========================================
-
--- 現在乗っているブロングマンを取得
-local function getActiveMachine()
-	for _, obj in pairs(Workspace:GetDescendants()) do
-		if obj.Name == "CreatureBlobman" and obj:FindFirstChild("VehicleSeat") then
-			local seatWeld = obj.VehicleSeat:FindFirstChild("SeatWeld")
-			if seatWeld and LocalPlayer.Character and seatWeld.Part1:IsDescendantOf(LocalPlayer.Character) then
-				return obj
-			end
-		end
-	end
-	return nil
+-- Utils
+local function isDescendantOf(descendant, ancestor)
+    while descendant and descendant ~= ancestor and descendant.Parent do
+        descendant = descendant.Parent
+    end
+    return descendant == ancestor
 end
 
--- 掴みアクションの実行
-local function executeGrabAction(target, machine)
-	if not target.Character or not machine then return end
-	local targetHRP = target.Character:FindFirstChild("HumanoidRootPart")
-	if not targetHRP then return end
-	
-	-- 左右の検出器を交互に選択
-	local side = Orion.Settings._sideToggle == 1 and "Left" or "Right"
-	local detector = machine:FindFirstChild(side .. "Detector")
-	local weld = detector and detector:FindFirstChild(side .. "Weld")
-	
-	-- 次回のためにフラグを反転
-	Orion.Settings._sideToggle = (Orion.Settings._sideToggle == 1) and 2 or 1 
-
-	-- サーバーへイベント送信
-	local grabScript = machine:FindFirstChild("BlobmanSeatAndOwnerScript")
-	if grabScript and grabScript:FindFirstChild("CreatureGrab") then
-		pcall(function()
-			grabScript.CreatureGrab:FireServer(detector, targetHRP, weld)
-		end)
-	end
+local function findActiveBlobman()
+    for _, v in ipairs(Workspace:GetDescendants()) do
+        if v.Name == "CreatureBlobman"
+        and v:FindFirstChild("VehicleSeat")
+        and v.VehicleSeat:FindFirstChild("SeatWeld") then
+            if LocalPlayer.Character
+            and isDescendantOf(v.VehicleSeat.SeatWeld.Part1, LocalPlayer.Character) then
+                return v
+            end
+        end
+    end
+    return nil
 end
 
--- ==========================================
--- 4. メインロジック (Main Logic)
--- ==========================================
+local function blobGrabPlayer(player, blobman)
+    if not player.Character or not blobman then return end
+    local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
 
--- システム停止
-function Orion.Stop()
-	Orion.Settings.Enabled = false
-	print("[ORION] System Paused.")
+    local grabPart =
+        blobalter == 1 and blobman:FindFirstChild("LeftDetector")
+        or blobman:FindFirstChild("RightDetector")
+
+    local weldPart =
+        grabPart and grabPart:FindFirstChild(blobalter == 1 and "LeftWeld" or "RightWeld")
+
+    blobalter = (blobalter == 1) and 2 or 1
+
+    local scriptObj = blobman:FindFirstChild("BlobmanSeatAndOwnerScript")
+    local grabEvent = scriptObj and scriptObj:FindFirstChild("CreatureGrab")
+
+    if grabPart and weldPart and grabEvent then
+        pcall(function()
+            grabEvent:FireServer(grabPart, hrp, weldPart)
+        end)
+    end
 end
 
--- システム開始
-function Orion.Start()
-	if Orion.Settings.Enabled then return end
-	
-	local machine = getActiveMachine()
-	if not machine then
-		warn("[ORION] Error: Blobman not found. Please sit in a seat first.")
-		return
+-- Auto Grab（全員・距離無視）
+local function StartAutoGrab()
+    if ForceGrabCoroutine then return end
+
+    ForceGrabCoroutine = coroutine.create(function()
+        while true do
+            local blobman = findActiveBlobman()
+            if blobman then
+                for _, plr in ipairs(Players:GetPlayers()) do
+                    if plr ~= LocalPlayer then
+                        blobGrabPlayer(plr, blobman)
+                    end
+                end
+
+                if tossEvent then pcall(function() tossEvent:FireServer() end) end
+                if endGrabEvent then pcall(function() endGrabEvent:FireServer() end) end
+            end
+            task.wait(GRAB_INTERVAL)
+        end
+    end)
+
+    coroutine.resume(ForceGrabCoroutine)
+end
+
+local function StopAutoGrab()
+    if ForceGrabCoroutine then
+        coroutine.close(ForceGrabCoroutine)
+        ForceGrabCoroutine = nil
+    end
+end
+
+-- ===== Orion Tab（タブだけ）=====
+local BlobmanTab = Window:MakeTab({
+    Name = "ブロブマン",
+    Icon = "rbxassetid://10427807755",
+    PremiumOnly = false
+})
+
+BlobmanTab:AddSection({ Name = "自動掴み（全員）" })
+
+BlobmanTab:AddToggle({
+    Name = "全員自動掴み ON / OFF（距離無視）",
+    Default = false,
+    Callback = function(v)
+        if v then
+            StartAutoGrab()
+        else
+            StopAutoGrab()
+        end
+    end
+})これを
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local Mouse = LocalPlayer:GetMouse()
+local WorldToScreenPoint = Camera.WorldToScreenPoint
+local GetPlayers = Players.GetPlayers
+local FindFirstChild = game.FindFirstChild
+
+local Enabled = false -- 初期オフ
+local MaxStuds = 40 -- デフォルト距離
+
+-- タブ名「サイレントエイム」
+local Tab = Window:MakeTab({Name = "サイレントエイム", Icon = "rbxassetid://4483345998"})
+
+-- ON/OFF トグル（表示名「Silent aim」）
+Tab:AddToggle({
+	Name = "Silent aim",
+	Default = false,  -- 初期オフ
+	Callback = function(v)
+		Enabled = v
 	end
+})
 
-	Orion.Settings.Enabled = true
-	print("[ORION] System Active. Scanning for targets...")
+-- 距離スライダー（0〜50、デフォルト40）
+Tab:AddSlider({
+	Name = "Max Distance (studs)",
+	Min = 0,
+	Max = 50,
+	Default = 40,
+	Increment = 1,
+	Callback = function(v)
+		MaxStuds = v
+	end
+})
 
-	task.spawn(function()
-		while Orion.Settings.Enabled do
-			local char = LocalPlayer.Character
-			local hrp = char and char:FindFirstChild("HumanoidRootPart")
-			
-			if hrp then
-				for _, p in ipairs(Players:GetPlayers()) do
-					if p ~= LocalPlayer and p.Character then
-						local tHRP = p.Character:FindFirstChild("HumanoidRootPart")
-						if tHRP and (tHRP.Position - hrp.Position).Magnitude < Orion.Settings.Range then
-							-- 効率化のため非同期で実行
-							task.spawn(executeGrabAction, p, machine)
+-- ユーティリティ関数
+local function GetOnScreenPosition(V3)
+    local Position, IsVisible = WorldToScreenPoint(Camera, V3)
+    return Vector2.new(Position.X, Position.Y), IsVisible
+end
+
+local function GetDirection(Origin, Position)
+	local dir = Position - Origin
+	local dist = dir.Magnitude
+	if dist > MaxStuds then
+		dir = dir.Unit * MaxStuds
+	end
+	return dir
+end
+
+local function GetMousePosition()
+    return Vector2.new(Mouse.X, Mouse.Y)
+end
+
+local function GetClosestPlayer()
+    local Closest, Distance = nil, 10000
+    for _, Player in next, GetPlayers(Players) do
+        if Player ~= LocalPlayer then
+            local Character = Player.Character
+            local Head = Character and FindFirstChild(Character, "Head")
+            local Humanoid = Character and FindFirstChild(Character, "Humanoid")
+            if Head and (Humanoid and Humanoid.Health > 0) then
+                local ScreenPos, IsVisible = GetOnScreenPosition(Head.Position)
+                if IsVisible then
+                    local _Distance = (GetMousePosition() - ScreenPos).Magnitude
+                    if _Distance <= Distance then
+						local worldDist = (Camera.CFrame.Position - Head.Position).Magnitude
+						if worldDist <= MaxStuds then
+                        	Closest = Head
+                        	Distance = _Distance
 						end
-					end
-				end
-			end
-
-			-- 掴み状態の強制更新 (連打用)
-			if TossEvent then pcall(function() TossEvent:FireServer() end) end
-			if EndGrabEvent then pcall(function() EndGrabEvent:FireServer() end) end
-			
-			task.wait(Orion.Settings.Interval)
-		end
-	end)
+                    end
+                end
+            end
+        end
+    end
+    return Closest, Distance
 end
 
--- ==========================================
--- 5. 実行開始 (Execution)
--- ==========================================
-Orion.Start()
-
-return Orion
+-- Raycast Hook
+local oldNamecall
+oldNamecall =
+    hookmetamethod(
+    game,
+    "__namecall",
+    function(...)
+        local Method = getnamecallmethod()
+        local Arguments = {...}
+        if Enabled and Arguments[1] == workspace and Method == "Raycast" then
+            if typeof(Arguments[#Arguments]) ~= "RaycastParams" then
+                return oldNamecall(...)
+            end
+            local HitPart = GetClosestPlayer()
+            if HitPart then
+                Arguments[3] = GetDirection(Arguments[2], HitPart.Position)
+                return oldNamecall(unpack(Arguments))
+            end
+        end
+        return oldNamecall(...)
+    end
+)
