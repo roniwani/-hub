@@ -1,0 +1,686 @@
+-- smailhub
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local Players = game:GetService("Players")
+local LP = Players.LocalPlayer
+
+-- 指定されたソースコードからOrionをロード
+local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/jadpy/suki/refs/heads/main/orion"))()
+
+-- ウィンドウ作成
+local Window = OrionLib:MakeWindow({
+Name = "FTAPsmilehub V2.5",
+HidePremium = false,
+SaveConfig = true,
+ConfigFolder = "OrionTest"
+})
+
+
+---
+
+-- レインボーライン機能のロジック (smilehub)
+
+local originalColors
+if ReplicatedStorage:FindFirstChild("DataEvents") and ReplicatedStorage.DataEvents:FindFirstChild("UpdateLineColorsEvent") then
+originalColors = {}
+for i = 1, 10 do
+table.insert(originalColors, Color3.new(1,1,1))
+end
+end
+
+local ToggleState = false
+local hueOffset = 0
+
+local function FireRainbowColors()
+if ReplicatedStorage:FindFirstChild("DataEvents") and ReplicatedStorage.DataEvents:FindFirstChild("UpdateLineColorsEvent") then
+local cs = ColorSequence.new{
+ColorSequenceKeypoint.new(0, Color3.fromHSV((0+hueOffset)%1,1,1)),
+ColorSequenceKeypoint.new(0.1, Color3.fromHSV((0.1+hueOffset)%1,1,1)),
+ColorSequenceKeypoint.new(0.2, Color3.fromHSV((0.2+hueOffset)%1,1,1)),
+ColorSequenceKeypoint.new(0.3, Color3.fromHSV((0.3+hueOffset)%1,1,1)),
+ColorSequenceKeypoint.new(0.4, Color3.fromHSV((0.4+hueOffset)%1,1,1)),
+ColorSequenceKeypoint.new(0.5, Color3.fromHSV((0.5+hueOffset)%1,1,1)),
+ColorSequenceKeypoint.new(0.6, Color3.fromHSV((0.6+hueOffset)%1,1,1)),
+ColorSequenceKeypoint.new(0.7, Color3.fromHSV((0.7+hueOffset)%1,1,1)),
+ColorSequenceKeypoint.new(0.8, Color3.fromHSV((0.8+hueOffset)%1,1,1)),
+ColorSequenceKeypoint.new(0.9, Color3.fromHSV((0.9+hueOffset)%1,1,1)),
+ColorSequenceKeypoint.new(1, Color3.fromHSV((1+hueOffset)%1,1,1))
+}
+ReplicatedStorage.DataEvents.UpdateLineColorsEvent:FireServer(cs, cs.Keypoints[1].Value, cs.Keypoints[2].Value, cs.Keypoints[3].Value, cs.Keypoints[4].Value, cs.Keypoints[5].Value, cs.Keypoints[6].Value, cs.Keypoints[7].Value, cs.Keypoints[8].Value, cs.Keypoints[9].Value)
+end
+end
+
+RunService.Heartbeat:Connect(function()
+if ToggleState then
+hueOffset = (hueOffset + 0.005) % 1
+FireRainbowColors()
+end
+end)
+
+
+-- 翼MOD 機能のロジック (WINGS MOD)
+
+local Enabled = false
+local Spacing = 0.0
+local WingHeight = 2.0  -- 中心に寄せるため高さを下げました（デフォルト20から修正）
+local BackOffset = 0.5  -- 体に密着させるため0.5に調整
+local SideOffset = 0.0
+local WaveAmplitude = 2.5
+local WaveSpeed = 5.0
+local TwistAngle = 20.0
+local TwistSpeed = 5.0
+local TwistWave = 0.5
+local TargetSet = "Sparkler"
+local defaultMaxZoom = 12
+local maxZoom5000Enabled = false
+
+local TargetSets = {
+["GlassBox"] = {"GlassBoxGray"},
+["Pallet"] = {"PalletLightBrown"},
+["Sparkler"] = {"FireworkSparkler"},
+["Toilet"] = {"ToiletWhite","ToiletGold"},
+["Piano"] = {"KeyboardPart", "MusicKeyboard"},
+["Stick"] = {"Stick"} -- Stickを追加
+}
+
+local list, loopConn = {}, nil
+local tAccum = 0
+
+local function HRP()
+local c = LP.Character or LP.CharacterAdded:Wait()
+return c:FindFirstChild("HumanoidRootPart")
+end
+local function getPartFromModel(m)
+if m.PrimaryPart then return m.PrimaryPart end
+return m:FindFirstChildWhichIsA("BasePart")
+end
+local function nameInTargets(n)
+local t = TargetSets[TargetSet]
+if not t then return false end
+for _, nm in ipairs(t) do if n == nm then return true end end
+return false
+end
+
+local function attachPhysics(rec)
+local model = rec.model; local part = rec.part
+if not model or not part or not part.Parent then return end
+for _, p in ipairs(model:GetDescendants()) do
+if p:IsA("BasePart") and not p:IsA("BodyMover") then
+pcall(function() p:SetNetworkOwner(LP) end)
+p.CanCollide, p.CanTouch = false, false
+end
+end
+if not part:FindFirstChild("BodyVelocity") then
+local bv = Instance.new("BodyVelocity", part); bv.Name = "BodyVelocity"; bv.MaxForce = Vector3.new(1e8,1e8,1e8); bv.Velocity = Vector3.new(); bv.P = 1e6
+end
+if not part:FindFirstChild("BodyGyro") then
+local bg = Instance.new("BodyGyro", part); bg.Name = "BodyGyro"; bg.MaxTorque = Vector3.new(1e8,1e8,1e8); bg.CFrame = part.CFrame; bg.P = 1e6
+end
+end
+
+local function detachPhysics(rec)
+local model = rec.model; local part = rec.part
+if not model or not part then return end
+if part:FindFirstChild("BodyVelocity") then part.BodyVelocity:Destroy() end
+if part:FindFirstChild("BodyGyro") then part.BodyGyro:Destroy() end
+for _, p in ipairs(model:GetDescendants()) do
+if p:IsA("BasePart") and not p:IsA("BodyMover") then
+p.CanCollide, p.CanTouch = true, true
+pcall(function() p:SetNetworkOwner(nil) end)
+end
+end
+end
+
+local function rescan()
+for _,r in ipairs(list) do detachPhysics(r) end
+list = {}
+for _, d in ipairs(Workspace:GetDescendants()) do
+if d:IsA("Model") and nameInTargets(d.Name) then
+local part = getPartFromModel(d)
+if part and not part.Anchored then table.insert(list, {model=d, part=part}) end
+elseif d:IsA("BasePart") and nameInTargets(d.Name) then -- パーツ単体にも対応
+if not d.Anchored then table.insert(list, {model=d, part=d}) end
+end
+end
+for i = 1, #list do attachPhysics(list[i]) end
+end
+
+local function startLoop()
+if loopConn then loopConn:Disconnect() end
+tAccum = 0
+loopConn = RunService.Heartbeat:Connect(function(dt)
+local root = HRP()
+if not root or #list == 0 then return end
+tAccum = tAccum + dt
+-- 自分の中心に寄せるためのCFrame調整
+local wingsCenter = root.CFrame * CFrame.new(SideOffset, WingHeight, BackOffset)
+local WaveConstant = math.pi / #list
+for j = 1, #list do
+local rec = list[j]; local p = rec.part
+if p and p.Parent then
+local isRight = (j % 2 == 0); local sign = isRight and 1 or -1
+local animationIndex = math.ceil(j / 2)
+local distanceIndex = isRight and (j - 2) / 2 or (j - 1) / 2
+
+-- Spacingが0に近いほど中心に集まる  
+            local xOffset = Spacing * (distanceIndex + 0.2) * sign   
+            local waveOffset = WaveAmplitude * math.sin(WaveSpeed * tAccum + animationIndex * WaveConstant)  
+            local twistOscillation = math.sin(TwistSpeed * tAccum + animationIndex * TwistWave)  
+            local currentTwistAngle = math.rad(TwistAngle * twistOscillation * (distanceIndex / (#list / 2)))   
+              
+            local targetCFrame = wingsCenter * CFrame.Angles(currentTwistAngle, 0, 0) * CFrame.new(xOffset, waveOffset, 0)  
+            if p:FindFirstChild("BodyVelocity") then p.BodyVelocity.Velocity = (targetCFrame.Position - p.Position) * 20 end  
+            if p:FindFirstChild("BodyGyro") then p.BodyGyro.CFrame = targetCFrame end  
+        end  
+    end  
+end)
+
+end
+
+
+---
+
+-- タブ構成
+
+-- 情報タブ
+local InfoTab = Window:MakeTab({
+Name = "情報",
+Icon = "rbxassetid://4483345998",
+PremiumOnly = false
+})
+
+InfoTab:AddLabel("Credit: BGHACKERS / Logfeetst")
+
+InfoTab:AddButton({
+Name = "Discordリンクをコピー",
+Callback = function()
+setclipboard("https://discord.gg/27Zrg66yB")
+OrionLib:MakeNotification({Name = "コピー完了", Content = "リンクをコピーしたぜ、マスター。", Time = 3})
+end
+})
+
+-- レインボータブ
+local LineTab = Window:MakeTab({
+Name = "Line Color",
+Icon = "rbxassetid://4483345998",
+PremiumOnly = false
+})
+
+LineTab:AddToggle({
+Name = "Rainbow Lines (FTAP ONLY)",
+Default = false,
+Callback = function(Value)
+ToggleState = Value
+if not Value and originalColors then
+ReplicatedStorage.DataEvents.UpdateLineColorsEvent:FireServer(originalColors[1],originalColors[2],originalColors[3],originalColors[4],originalColors[5],originalColors[6],originalColors[7],originalColors[8],originalColors[9],originalColors[10])
+end
+end
+})
+
+-- テレポートタブ
+local TPTab = Window:MakeTab({
+Name = "テレポート",
+Icon = "rbxassetid://4483345998",
+PremiumOnly = false
+})
+
+local function Teleport(coords)
+local player = game.Players.LocalPlayer
+if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+player.Character.HumanoidRootPart.CFrame = CFrame.new(coords)
+end
+end
+
+TPTab:AddSection({Name = "各拠点への移動"})
+TPTab:AddButton({ Name = "ピンクの家にテレポート", Callback = function() Teleport(Vector3.new(-481.23, -7.35, -149.67)) end })
+TPTab:AddButton({ Name = "緑の家にテレポート", Callback = function() Teleport(Vector3.new(-546.02, -7.35, 78.07)) end })
+TPTab:AddButton({ Name = "赤い家にテレポート", Callback = function() Teleport(Vector3.new(542.11, 123.34, -91.78)) end })
+TPTab:AddButton({ Name = "水色の家にテレポート", Callback = function() Teleport(Vector3.new(496.99, 83.34, -350.96)) end })
+
+-- 翼MODタブ
+local WingTab = Window:MakeTab({
+Name = "WINGS",
+Icon = "rbxassetid://6031075927",
+PremiumOnly = false
+})
+
+WingTab:AddDropdown({
+Name = "ターゲット選択",
+Default = TargetSet,
+Options = {"Stick", "Sparkler","Toilet", "Piano", "GlassBox", "Pallet"},
+Callback = function(v) TargetSet = v; if Enabled then rescan() end end
+})
+
+WingTab:AddToggle({
+Name = "羽起動/停止",
+Default = false,
+Callback = function(v)
+Enabled = v
+if v then rescan(); startLoop() else if loopConn then loopConn:Disconnect() end; for _,rec in ipairs(list) do detachPhysics(rec) end; list = {} end
+end
+})
+
+WingTab:AddButton({
+Name = "Fly GUI v3 起動",
+Callback = function()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/XNEOFF/FlyGuiV3/main/FlyGuiV3.txt"))()
+end
+})
+
+WingTab:AddSlider({ Name = "翼の広さ (Spacing)", Min = 0, Max = 5, Default = 0.2, Increment = 0.1, Callback = function(v) Spacing = v end })
+WingTab:AddSlider({ Name = "翼の高さ (Height)", Min = -10, Max = 100, Default = 2, Increment = 1, Callback = function(v) WingHeight = v end })
+
+WingTab:AddToggle({
+Name = "カメラズーム 2000",
+Default = false,
+Callback = function(v)
+maxZoom5000Enabled = v
+LP.CameraMaxZoomDistance = v and 5000 or defaultMaxZoom
+end
+})
+
+OrionLib:Init()
+LP.CameraMode = Enum.CameraMode.Classic
+LP.CameraMinZoomDistance = 0.5
+
+-- ESP 機能（追加のみ・既存コード不干渉）
+
+local ESPEnabled = false
+local ESPObjects = {}
+
+local function getHeadshot(userId)
+return "https://www.roblox.com/headshot-thumbnail/image?userId="
+.. userId .. "&width=150&height=150&format=png"
+end
+
+local function createESP(player)
+if player == LP then return end
+if ESPObjects[player] then return end
+
+local gui = Instance.new("BillboardGui")  
+gui.Name = "TPHubESP"  
+gui.Size = UDim2.new(0, 220, 0, 90)  
+gui.StudsOffset = Vector3.new(0, 2.5, 0)  
+gui.AlwaysOnTop = true  
+
+local frame = Instance.new("Frame")  
+frame.Size = UDim2.new(1, 0, 1, 0)  
+frame.BackgroundColor3 = Color3.fromRGB(20,20,20)  
+frame.BackgroundTransparency = 0.2  
+frame.BorderSizePixel = 1  
+frame.Parent = gui  
+
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)  
+
+local img = Instance.new("ImageLabel")  
+img.Size = UDim2.new(0, 64, 0, 64)  
+img.Position = UDim2.new(0, 6, 0, 12)  
+img.BackgroundTransparency = 1  
+img.Image = getHeadshot(player.UserId)  
+img.Parent = frame  
+
+local nameLabel = Instance.new("TextLabel")  
+nameLabel.Position = UDim2.new(0, 80, 0, 18)  
+nameLabel.Size = UDim2.new(1, -90, 0, 22)  
+nameLabel.BackgroundTransparency = 1  
+nameLabel.Text = player.DisplayName  
+nameLabel.TextColor3 = Color3.new(1,1,1)  
+nameLabel.TextScaled = true  
+nameLabel.Font = Enum.Font.GothamBold  
+nameLabel.Parent = frame  
+
+local idLabel = Instance.new("TextLabel")  
+idLabel.Position = UDim2.new(0, 80, 0, 42)  
+idLabel.Size = UDim2.new(1, -90, 0, 20)  
+idLabel.BackgroundTransparency = 1  
+idLabel.Text = "ID : "..player.UserId  
+idLabel.TextColor3 = Color3.fromRGB(180,180,180)  
+idLabel.TextScaled = true  
+idLabel.Font = Enum.Font.Gotham  
+idLabel.Parent = frame  
+
+ESPObjects[player] = gui  
+
+local function attach()  
+    if player.Character and player.Character:FindFirstChild("Head") then  
+        gui.Parent = player.Character.Head  
+    end  
+end  
+
+attach()  
+player.CharacterAdded:Connect(function()  
+    task.wait(1)  
+    attach()  
+end)
+
+end
+
+local function removeAllESP()
+for _, gui in pairs(ESPObjects) do
+if gui then gui:Destroy() end
+end
+ESPObjects = {}
+end
+
+Players.PlayerAdded:Connect(function(player)
+if ESPEnabled then
+createESP(player)
+end
+end)
+
+
+---
+
+-- ESP タブ（追加のみ）
+
+local ESPTab = Window:MakeTab({
+Name = "ESP",
+Icon = "rbxassetid://4483345998",
+PremiumOnly = false
+})
+
+ESPTab:AddToggle({
+Name = "ESP 有効（名前 / ID / 顔）",
+Default = false,
+Callback = function(value)
+ESPEnabled = value
+if value then
+for _, player in ipairs(Players:GetPlayers()) do
+createESP(player)
+end
+else
+removeAllESP()
+end
+end
+})-------------------------------------------------------------------
+-- WINGS 回転機能（完全追加・既存コード不干渉）
+
+local SpinEnabled = false
+local SpinSpeed = 10 -- デフォルト10（最大20）
+
+-- 自キャラ高速右回転
+RunService.Heartbeat:Connect(function()
+if not SpinEnabled then return end
+local char = LP.Character
+local hrp = char and char:FindFirstChild("HumanoidRootPart")
+if hrp then
+hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(SpinSpeed), 0)
+end
+end)
+
+-- WINGS タブにUI追加（他は一切変更しない）
+WingTab:AddToggle({
+Name = "回転（右スピン）",
+Default = false,
+Callback = function(v)
+SpinEnabled = v
+end
+})
+
+WingTab:AddSlider({
+Name = "回転スピード",
+Min = 1,
+Max = 20,
+Default = 10,
+Increment = 1,
+Callback = function(v)
+SpinSpeed = v
+end
+})
+
+-- WINGS 対象プレイヤー選択（完全追加）
+
+local WingsTargetPlayer = nil
+local WingsTargetEnabled = false
+local targetLoopConn = nil
+
+-- プレイヤー名リスト取得
+local function getPlayerNameList()
+local t = {"自分"}
+for _, plr in ipairs(Players:GetPlayers()) do
+if plr ~= LP then
+table.insert(t, plr.Name)
+end
+end
+return t
+end
+
+local function getTargetHRP()
+if not WingsTargetEnabled or not WingsTargetPlayer then
+return HRP()
+end
+if WingsTargetPlayer.Character then
+return WingsTargetPlayer.Character:FindFirstChild("HumanoidRootPart")
+end
+return nil
+end
+
+-- 対象用Wingsループ（既存Wingsとは完全別）
+local function startTargetLoop()
+if targetLoopConn then targetLoopConn:Disconnect() end
+targetLoopConn = RunService.Heartbeat:Connect(function(dt)
+local root = getTargetHRP()
+if not root or #list == 0 then return end
+
+tAccum = tAccum + dt  
+    local wingsCenter = root.CFrame * CFrame.new(SideOffset, WingHeight, BackOffset)  
+    local WaveConstant = math.pi / #list  
+
+    for j = 1, #list do  
+        local rec = list[j]  
+        local p = rec.part  
+        if p and p.Parent then  
+            local isRight = (j % 2 == 0)  
+            local sign = isRight and 1 or -1  
+            local animationIndex = math.ceil(j / 2)  
+            local distanceIndex = isRight and (j - 2) / 2 or (j - 1) / 2  
+
+            local xOffset = Spacing * (distanceIndex + 0.2) * sign  
+            local waveOffset = WaveAmplitude * math.sin(WaveSpeed * tAccum + animationIndex * WaveConstant)  
+            local twistOscillation = math.sin(TwistSpeed * tAccum + animationIndex * TwistWave)  
+            local currentTwistAngle = math.rad(TwistAngle * twistOscillation)  
+
+            local targetCFrame =  
+                wingsCenter  
+                * CFrame.Angles(currentTwistAngle, 0, 0)  
+                * CFrame.new(xOffset, waveOffset, 0)  
+
+            if p:FindFirstChild("BodyVelocity") then  
+                p.BodyVelocity.Velocity = (targetCFrame.Position - p.Position) * 20  
+            end  
+            if p:FindFirstChild("BodyGyro") then  
+                p.BodyGyro.CFrame = targetCFrame  
+            end  
+        end  
+    end  
+end)
+
+end
+
+
+---
+
+-- WINGS 吸着修正（HRP再定義・既存コード完全不干渉）
+
+local WingsTargetPlayer = nil
+
+-- HRP を再定義（Lua仕様で上書き）
+function HRP()
+-- 他人が選択されている場合
+if WingsTargetPlayer
+and WingsTargetPlayer.Character
+and WingsTargetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+
+return WingsTargetPlayer.Character.HumanoidRootPart  
+end  
+
+-- デフォルト（自分）  
+local c = LP.Character or LP.CharacterAdded:Wait()  
+return c:FindFirstChild("HumanoidRootPart")
+
+end
+
+-- プレイヤー一覧
+local function getPlayerList()
+local t = {"自分"}
+for _, plr in ipairs(Players:GetPlayers()) do
+if plr ~= LP then
+table.insert(t, plr.Name)
+end
+end
+return t
+end
+
+-- WINGS タブに対象選択を追加
+WingTab:AddDropdown({
+Name = "WINGS 対象プレイヤー",
+Default = "自分",
+Options = getPlayerList(),
+Callback = function(v)
+if v == "自分" then
+WingsTargetPlayer = nil
+else
+WingsTargetPlayer = Players:FindFirstChild(v)
+end
+end
+})
+
+-- ===== Blobman Auto Grab (Orion 統合版) =====
+
+-- Services
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- ===== 設定 =====
+local NEARBY_RANGE = 25
+local GRAB_INTERVAL = 0.5
+
+-- ===== 内部 =====
+local blobalter = 1
+local ForceGrabCoroutine = nil
+
+-- ===== Events =====
+local GrabEvents = ReplicatedStorage:FindFirstChild("GrabEvents")
+local CreatureEvents = ReplicatedStorage:FindFirstChild("CreatureEvents")
+local tossEvent = CreatureEvents and CreatureEvents:FindFirstChild("CreatureToss")
+local endGrabEvent = GrabEvents and GrabEvents:FindFirstChild("EndGrabEarly")
+
+-- ===== Utility =====
+local function isDescendantOf(descendant, ancestor)
+    while descendant and descendant ~= ancestor and descendant.Parent do
+        descendant = descendant.Parent
+    end
+    return descendant == ancestor
+end
+
+local function findActiveBlobman()
+    for _, v in ipairs(Workspace:GetDescendants()) do
+        if v.Name == "CreatureBlobman"
+        and v:FindFirstChild("VehicleSeat")
+        and v.VehicleSeat:FindFirstChild("SeatWeld") then
+            if LocalPlayer.Character
+            and isDescendantOf(v.VehicleSeat.SeatWeld.Part1, LocalPlayer.Character) then
+                return v
+            end
+        end
+    end
+    return nil
+end
+
+local function blobGrabPlayer(player, blobman)
+    if not player.Character or not blobman then return end
+    local targetHRP = player.Character:FindFirstChild("HumanoidRootPart")
+    if not targetHRP then return end
+
+    local grabPart =
+        blobalter == 1 and blobman:FindFirstChild("LeftDetector")
+        or blobman:FindFirstChild("RightDetector")
+
+    local weldPart =
+        grabPart and grabPart:FindFirstChild(blobalter == 1 and "LeftWeld" or "RightWeld")
+
+    blobalter = (blobalter == 1) and 2 or 1
+
+    local scriptObj = blobman:FindFirstChild("BlobmanSeatAndOwnerScript")
+    local grabEvent = scriptObj and scriptObj:FindFirstChild("CreatureGrab")
+
+    if grabPart and weldPart and grabEvent then
+        pcall(function()
+            grabEvent:FireServer(grabPart, targetHRP, weldPart)
+        end)
+    end
+end
+
+-- ===== 公開関数 =====
+function StartAutoGrab()
+    if ForceGrabCoroutine then return end
+
+    local blobman = findActiveBlobman()
+    if not blobman then
+        warn("Blobmanに乗っていません")
+        return
+    end
+
+    ForceGrabCoroutine = coroutine.create(function()
+        while true do
+            local myChar = LocalPlayer.Character
+            local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
+
+            if myHRP then
+                for _, plr in ipairs(Players:GetPlayers()) do
+                    if plr ~= LocalPlayer and plr.Character then
+                        local hrp = plr.Character:FindFirstChild("HumanoidRootPart")
+                        if hrp and (hrp.Position - myHRP.Position).Magnitude <= NEARBY_RANGE then
+                            blobGrabPlayer(plr, blobman)
+                        end
+                    end
+                end
+            end
+
+            if tossEvent then pcall(function() tossEvent:FireServer() end) end
+            if endGrabEvent then pcall(function() endGrabEvent:FireServer() end) end
+
+            task.wait(GRAB_INTERVAL)
+        end
+    end)
+
+    coroutine.resume(ForceGrabCoroutine)
+end
+
+function StopAutoGrab()
+    if ForceGrabCoroutine then
+        coroutine.close(ForceGrabCoroutine)
+        ForceGrabCoroutine = nil
+    end
+end
+
+-- ===== Orion Tab =====
+local BlobmanTab = Window:MakeTab({
+    Name = "ブロブマン",
+    Icon = "rbxassetid://10427807755",
+    PremiumOnly = false
+})
+
+BlobmanTab:AddSection({
+    Name = "自動掴み"
+})
+
+BlobmanTab:AddToggle({
+    Name = "近くのプレイヤーを自動掴み",
+    Default = false,
+    Callback = function(v)
+        if v then
+            StartAutoGrab()
+        else
+            StopAutoGrab()
+        end
+    end
+})
+
+BlobmanTab:AddParagraph(
+    "注意",
+    "・Blobmanに乗っている必要あり\n・範囲: 25stud / 間隔: 0.5秒"
+)
