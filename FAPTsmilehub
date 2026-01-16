@@ -1,10 +1,49 @@
 -- smailhub
+
+-- ▼▼▼ 起動画面アニメーション ▼▼▼
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local player = Players.LocalPlayer
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "SmileHubIntro"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local image = Instance.new("ImageLabel")
+image.Size = UDim2.fromScale(0.5, 0.5)
+image.Position = UDim2.fromScale(0.5, 0.5)
+image.AnchorPoint = Vector2.new(0.5, 0.5)
+image.BackgroundTransparency = 1
+image.ImageTransparency = 1
+image.Image = "rbxassetid://127059380146426"
+image.Parent = gui
+
+TweenService:Create(
+	image,
+	TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+	{ ImageTransparency = 0, Size = UDim2.fromScale(0.6, 0.6) }
+):Play()
+
+task.delay(2.5, function()
+	TweenService:Create(
+		image,
+		TweenInfo.new(0.4),
+		{ ImageTransparency = 1 }
+	):Play()
+	task.delay(0.4, function()
+		gui:Destroy()
+	end)
+end)
+-- ▲▲▲ 起動画面ここまで ▲▲▲
+
+
+-- ▼▼▼ smilehub 本体 ▼▼▼
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
 local LP = Players.LocalPlayer
-
 -- 指定されたソースコードからOrionをロード
 local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/jadpy/suki/refs/heads/main/orion"))()
 
