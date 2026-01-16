@@ -666,8 +666,11 @@ local function TeleportAndKill(target)
     end
 end
 
-GrabTab:AddToggle({
-    Name = "指定テレポートKill",
+
+
+-- Toggle（KickTabに追加）
+KickTab:AddToggle({
+    Name = "指定テレポートKill（ループ）",
     Default = false,
     Callback = function(state)
         KillLoop = state
@@ -677,7 +680,7 @@ GrabTab:AddToggle({
                     if SelectedPlayer then
                         TeleportAndKill(SelectedPlayer)
                     end
-                    task.wait(0.25)
+                    task.wait(0.3)
                 end
             end)
         end
@@ -703,16 +706,6 @@ local KickDropdown = KickTab:AddDropdown({
     end
 })
 
-KickTab:AddButton({
-    Name = "指定プレイヤーをKick（Fling）",
-    Callback = function()
-        if SelectedPlayer then
-            TargetKill.Enabled = false
-            stopTargetKill()
-            flingPlayer(SelectedPlayer)
-        end
-    end
-})
 
 KickTab:AddToggle({
     Name = "指定テレポートKill",
@@ -969,5 +962,80 @@ DefenseTab:AddToggle({
     Default = false,
     Callback = function(Value)
         EggConfig.Defense.AntiRagdoll = Value
+    end
+})
+
+
+-- ===== プレイヤー管理 =====
+local PlayerList = {}
+local PlayerMap = {}
+local SelectedPlayer = nil
+local KillLoop = false
+
+local function UpdatePlayerList()
+    table.clear(PlayerList)
+    table.clear(PlayerMap)
+
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LP then
+            table.insert(PlayerList, plr.Name)
+            PlayerMap[plr.Name] = plr
+        end
+    end
+end
+
+UpdatePlayerList()
+Players.PlayerAdded:Connect(UpdatePlayerList)
+Players.PlayerRemoving:Connect(UpdatePlayerList)
+
+-- ===== Dropdown =====
+local PlayerDropdown = KickTab:AddDropdown({
+    Name = "対象プレイヤー",
+    Options = PlayerList,
+    Callback = function(name)
+        SelectedPlayer = PlayerMap[name]
+    end
+})
+
+KickTab:AddButton({
+    Name = "プレイヤー一覧更新",
+    Callback = function()
+        UpdatePlayerList()
+        PlayerDropdown:Refresh(PlayerList, true)
+    end
+})
+
+-- ===== テレポートKill処理 =====
+local function TeleportAndKill(target)
+    if not target then return end
+    if not (target.Character and LP.Character) then return end
+
+    local myHRP = LP.Character:FindFirstChild("HumanoidRootPart")
+    local targetHRP = target.Character:FindFirstChild("HumanoidRootPart")
+    local hum = target.Character:FindFirstChildOfClass("Humanoid")
+
+    if myHRP and targetHRP and hum and hum.Health > 0 then
+        myHRP.CFrame = targetHRP.CFrame * CFrame.new(0, 0, -2)
+        task.wait(0.1)
+        hum.Health = 0
+    end
+end
+
+-- ===== ループ Toggle =====
+KickTab:AddToggle({
+    Name = "指定テレポートKill（ループ）",
+    Default = false,
+    Callback = function(state)
+        KillLoop = state
+        if state then
+            task.spawn(function()
+                while KillLoop do
+                    if SelectedPlayer then
+                        TeleportAndKill(SelectedPlayer)
+                    end
+                    task.wait(0.3)
+                end
+            end)
+        end
     end
 })
