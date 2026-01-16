@@ -587,21 +587,29 @@ end
 end
 })
 -- ===============================
--- Kick / Fling 機能（最下部用）
+-- Kick / 指定テレポートKill
 -- ===============================
 
--- 変数定義
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LP = Players.LocalPlayer
+
+-- プレイヤー管理
 local playerNames = {}
 local playerData = {}
 local SelectedPlayer = nil
 
+-- 状態管理
 local FlingState = { Enabled = false }
+local TargetKill = {
+    Enabled = false,
+    Connection = nil
+}
 
-local Players = game:GetService("Players")
-local LP = Players.LocalPlayer
-
+-- ===============================
 -- プレイヤー一覧更新
-function UpdatePlayerList()
+-- ===============================
+local function UpdatePlayerList()
     table.clear(playerNames)
     table.clear(playerData)
 
@@ -613,33 +621,73 @@ function UpdatePlayerList()
     end
 end
 
+Players.PlayerAdded:Connect(UpdatePlayerList)
+Players.PlayerRemoving:Connect(UpdatePlayerList)
+
+-- ===============================
 -- Fling（疑似Kick）
-function flingPlayer(target, state)
-    if not target.Character then return end
+-- ===============================
+local function flingPlayer(target)
+    if not target or not target.Character then return end
 
     local hrp = target.Character:FindFirstChild("HumanoidRootPart")
     local myhrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
     if not hrp or not myhrp then return end
 
+    FlingState.Enabled = true
     task.spawn(function()
         for i = 1, 60 do
-            if not state.Enabled then break end
+            if not FlingState.Enabled then break end
             myhrp.CFrame = hrp.CFrame * CFrame.new(0, 0, -2)
             myhrp.Velocity = Vector3.new(9e9, 9e9, 9e9)
             task.wait()
         end
-        state.Enabled = false
+        FlingState.Enabled = false
     end)
 end
 
--- プレイヤー出入り時も自動更新
-Players.PlayerAdded:Connect(UpdatePlayerList)
-Players.PlayerRemoving:Connect(UpdatePlayerList)
+-- ===============================
+-- 指定テレポート Kill
+-- ===============================
+local function killCharacter(char)
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if hum and hum.Health > 0 then
+        hum.Health = 0
+    end
+end
+
+local function startTargetKill()
+    if TargetKill.Connection then
+        TargetKill.Connection:Disconnect()
+    end
+
+    TargetKill.Connection = RunService.Heartbeat:Connect(function()
+        if not TargetKill.Enabled then return end
+        if not SelectedPlayer then return end
+
+        local myChar = LP.Character
+        local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
+
+        local tChar = SelectedPlayer.Character
+        local tHRP = tChar and tChar:FindFirstChild("HumanoidRootPart")
+
+        if myHRP and tHRP then
+            myHRP.CFrame = tHRP.CFrame * CFrame.new(0, 0, -1)
+            killCharacter(tChar)
+        end
+    end)
+end
+
+local function stopTargetKill()
+    if TargetKill.Connection then
+        TargetKill.Connection:Disconnect()
+        TargetKill.Connection = nil
+    end
+end
 
 -- ===============================
--- Kick タブ（1回だけ）
+-- Kick タブ
 -- ===============================
-
 local KickTab = Window:MakeTab({
     Name = "kick",
     Icon = "rbxassetid://6031094674",
@@ -649,8 +697,7 @@ local KickTab = Window:MakeTab({
 UpdatePlayerList()
 
 local KickDropdown = KickTab:AddDropdown({
-    Name = "Kickするプレイヤー",
-    Default = "",
+    Name = "対象プレイヤー",
     Options = playerNames,
     Callback = function(name)
         SelectedPlayer = playerData[name]
@@ -658,11 +705,26 @@ local KickDropdown = KickTab:AddDropdown({
 })
 
 KickTab:AddButton({
-    Name = "指定プレイヤーをKick",
+    Name = "指定プレイヤーをKick（Fling）",
     Callback = function()
         if SelectedPlayer then
-            FlingState.Enabled = true
-            flingPlayer(SelectedPlayer, FlingState)
+            TargetKill.Enabled = false
+            stopTargetKill()
+            flingPlayer(SelectedPlayer)
+        end
+    end
+})
+
+KickTab:AddToggle({
+    Name = "指定テレポートKill",
+    Default = false,
+    Callback = function(Value)
+        TargetKill.Enabled = Value
+        if Value then
+            FlingState.Enabled = false
+            startTargetKill()
+        else
+            stopTargetKill()
         end
     end
 })
@@ -672,5 +734,241 @@ KickTab:AddButton({
     Callback = function()
         UpdatePlayerList()
         KickDropdown:Refresh(playerNames, true)
+    end
+})
+====================================================================
+-- UI SETUP (OrionLib)
+-- ====================================================================
+local Window = OrionLib:MakeWindow({
+    Name = "AKI hubb2.0",
+    HidePremium = false,
+    SaveConfig = true,
+    IntroEnabled = false
+})
+
+-- 線香花火制御タブ
+local SparklerTab = Window:MakeTab({
+    Name = "スパークラー",
+    Icon = "rbxassetid://6034509993",
+    PremiumOnly = false
+})
+
+SparklerTab:AddToggle({
+    Name = "有効化",
+    Default = false,
+    Callback = function(Value)
+        IsGeometricActive = Value
+        if Value then
+            startGeometricLoop()
+        else
+            if geometricLoopConn then geometricLoopConn:Disconnect() end
+        end
+    end
+})
+
+SparklerTab:AddDropdown({
+    Name = "形状選択",
+    Default = "Circle",
+    Options = {
+        "Circle", "Square", "Triangle", "Pentagon", 
+        "Hexagon", "Octagon", "Star", "Heart", 
+        "Flower", "Cloud", "Rainbow", "Spiral", 
+        "Butterfly", "Wave", "Bubble", "DNA", 
+        "Infinity", "Palette", "Tree", "Pentagram",
+        "Sphere", "Manji", "Explosion"
+    },
+    Callback = function(Value)
+        CurrentPattern = Value
+        tAccum = 0
+    end
+})
+
+SparklerTab:AddSlider({
+    Name = "サイズ",
+    Min = 2,
+    Max = 150,
+    Default = 10,
+    Color = Color3.fromRGB(255, 255, 255),
+    Increment = 1,
+    ValueName = "半径",
+    Callback = function(Value)
+        Radius = Value
+    end
+})
+
+SparklerTab:AddSlider({
+    Name = "高さ",
+    Min = -100,
+    Max = 100,
+    Default = 5,
+    Color = Color3.fromRGB(255, 255, 255),
+    Increment = 1,
+    ValueName = "深度",
+    Callback = function(Value)
+        HeightOffset = Value
+    end
+})
+
+SparklerTab:AddSlider({
+    Name = "回転速度",
+    Min = 10,
+    Max = 3000,
+    Default = 1000,
+    Color = Color3.fromRGB(255, 255, 255),
+    Increment = 10,
+    ValueName = "速度",
+    Callback = function(Value)
+        RotationSpeed = Value
+    end
+})
+-- サイレントエイムタブ (追加)
+local SilentAimTab = Window:MakeTab({
+    Name = "サイレントエイム",
+    Icon = "rbxassetid://6031086054",
+    PremiumOnly = false
+})
+
+SilentAimTab:AddSection({
+    Name = "サイレントエイム設定"
+})
+
+SilentAimTab:AddSlider({
+    Name = "エイム範囲",
+    Min = 5,
+    Max = 100,
+    Default = 30,
+    Color = Color3.fromRGB(255, 255, 255),
+    Increment = 1,
+    ValueName = "スタッド",
+    Callback = function(value)
+        SilentAimRange = value
+    end
+})
+
+SilentAimTab:AddToggle({
+    Name = "サイレントエイムON/OFF",
+    Default = false,
+    Callback = function(state)
+        SilentAimEnabled = state
+        
+        if state then
+            HookSilentAim()
+            OrionLib:MakeNotification({
+                Name = "エイミング",
+                Content = "サイレントエイム有効化",
+                Time = 3
+            })
+        else
+            OrionLib:MakeNotification({
+                Name = "エイミング",
+                Content = "サイレントエイム無効化",
+                Time = 3
+            })
+        end
+    end
+})
+-- 掴み機能タブ 
+local GrabTab = Window:MakeTab({
+    Name = "掴み機能",
+    Icon = "rbxassetid://6034509993",
+    PremiumOnly = false
+})
+
+GrabTab:AddSection({
+    Name = "掴みオプション"
+})
+
+GrabTab:AddToggle({
+    Name = "キック掴み",
+    Default = false,
+    Callback = function(Value)
+        EggConfig.Grab.KickGrab = Value
+    end
+})
+
+GrabTab:AddToggle({
+    Name = "キル掴み",
+    Default = false,
+    Callback = function(Value)
+        EggConfig.Grab.KillGrab = Value
+    end
+})
+
+GrabTab:AddToggle({
+    Name = "奈落掴み",
+    Default = false,
+    Callback = function(Value)
+        EggConfig.Grab.VoidGrab = Value
+    end
+})
+
+GrabTab:AddToggle({
+    Name = "固定掴み",
+    Default = false,
+    Callback = function(Value)
+        EggConfig.Grab.AnchorGrab = Value
+    end
+})
+
+GrabTab:AddSlider({
+    Name = "投げる強さ",
+    Min = 0,
+    Max = 10000,
+    Default = 250,
+    Color = Color3.fromRGB(255, 255, 255),
+    Increment = 10,
+    ValueName = "強さ",
+    Callback = function(Value)
+        EggConfig.Grab.ThrowPower = Value
+    end
+})
+-- 防御機能タブ
+local DefenseTab = Window:MakeTab({
+    Name = "防御機能",
+    Icon = "rbxassetid://6034509993",
+    PremiumOnly = false
+})
+
+DefenseTab:AddSection({
+    Name = "防御オプション"
+})
+
+DefenseTab:AddToggle({
+    Name = "アンチ掴み",
+    Default = false,
+    Callback = function(Value)
+        EggConfig.Defense.AntiGrab = Value
+    end
+})
+
+DefenseTab:AddToggle({
+    Name = "アンチ奈落",
+    Default = false,
+    Callback = function(Value)
+        EggConfig.Defense.AntiVoid = Value
+    end
+})
+
+DefenseTab:AddToggle({
+    Name = "アンチ爆発",
+    Default = false,
+    Callback = function(Value)
+        EggConfig.Defense.AntiExplode = Value
+    end
+})
+
+DefenseTab:AddToggle({
+    Name = "アンチグッチ",
+    Default = false,
+    Callback = function(Value)
+        EggConfig.Defense.AntiGucci = Value
+    end
+})
+
+DefenseTab:AddToggle({
+    Name = "アンチラグドール",
+    Default = false,
+    Callback = function(Value)
+        EggConfig.Defense.AntiRagdoll = Value
     end
 })
