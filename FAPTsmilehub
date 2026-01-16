@@ -585,3 +585,40 @@ WingsTargetPlayer = Players:FindFirstChild(v)
 end
 end
 })
+-- kick タブ作成（1回だけ）
+local KickTab = Window:MakeTab({
+    Name = "kick",
+    Icon = "rbxassetid://6031094674",
+    PremiumOnly = false
+})
+
+UpdatePlayerList()
+
+local KickDropdown = KickTab:AddDropdown({
+    Name = "Kickするプレイヤー",
+    Default = "",
+    Options = playerNames,
+    Callback = function(selectedName)
+        SelectedPlayer = playerData[selectedName]
+    end
+})
+
+KickTab:AddButton({
+    Name = "指定プレイヤーをKick",
+    Callback = function()
+        if SelectedPlayer then
+            FlingState.Enabled = true
+            flingPlayer(SelectedPlayer, FlingState)
+        else
+            warn("プレイヤーが指定されていません")
+        end
+    end
+})
+
+KickTab:AddButton({
+    Name = "プレイヤー一覧更新",
+    Callback = function()
+        UpdatePlayerList()
+        KickDropdown:Refresh(playerNames, true)
+    end
+})
