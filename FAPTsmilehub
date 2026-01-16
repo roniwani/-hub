@@ -646,44 +646,43 @@ local function flingPlayer(target)
     end)
 end
 
--- ===============================
--- 指定テレポート Kill
--- ===============================
-local function killCharacter(char)
-    local hum = char and char:FindFirstChildOfClass("Humanoid")
-    if hum and hum.Health > 0 then
-        hum.Health = 0
+local Players = game:GetService("Players")
+local LP = Players.LocalPlayer
+
+local SelectedPlayer = SelectedPlayer -- 既にあるなら消さない
+local KillLoop = false
+
+local function TeleportAndKill(target)
+    if not (target and target.Character and LP.Character) then return end
+
+    local myHRP = LP.Character:FindFirstChild("HumanoidRootPart")
+    local targetHRP = target.Character:FindFirstChild("HumanoidRootPart")
+    local hum = target.Character:FindFirstChildOfClass("Humanoid")
+
+    if myHRP and targetHRP and hum then
+        myHRP.CFrame = targetHRP.CFrame * CFrame.new(0,0,-2)
+        task.wait(0.1)
+        hum:TakeDamage(1000)
     end
 end
 
-local function startTargetKill()
-    if TargetKill.Connection then
-        TargetKill.Connection:Disconnect()
-    end
-
-    TargetKill.Connection = RunService.Heartbeat:Connect(function()
-        if not TargetKill.Enabled then return end
-        if not SelectedPlayer then return end
-
-        local myChar = LP.Character
-        local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
-
-        local tChar = SelectedPlayer.Character
-        local tHRP = tChar and tChar:FindFirstChild("HumanoidRootPart")
-
-        if myHRP and tHRP then
-            myHRP.CFrame = tHRP.CFrame * CFrame.new(0, 0, -1)
-            killCharacter(tChar)
+GrabTab:AddToggle({
+    Name = "指定テレポートKill",
+    Default = false,
+    Callback = function(state)
+        KillLoop = state
+        if state then
+            task.spawn(function()
+                while KillLoop do
+                    if SelectedPlayer then
+                        TeleportAndKill(SelectedPlayer)
+                    end
+                    task.wait(0.25)
+                end
+            end)
         end
-    end)
-end
-
-local function stopTargetKill()
-    if TargetKill.Connection then
-        TargetKill.Connection:Disconnect()
-        TargetKill.Connection = nil
     end
-end
+})
 
 -- ===============================
 -- Kick タブ
