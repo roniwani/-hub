@@ -586,7 +586,60 @@ WingsTargetPlayer = Players:FindFirstChild(v)
 end
 end
 })
--- kick タブ作成（1回だけ）
+-- ===============================
+-- Kick / Fling 機能（最下部用）
+-- ===============================
+
+-- 変数定義
+local playerNames = {}
+local playerData = {}
+local SelectedPlayer = nil
+
+local FlingState = { Enabled = false }
+
+local Players = game:GetService("Players")
+local LP = Players.LocalPlayer
+
+-- プレイヤー一覧更新
+function UpdatePlayerList()
+    table.clear(playerNames)
+    table.clear(playerData)
+
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LP then
+            table.insert(playerNames, plr.Name)
+            playerData[plr.Name] = plr
+        end
+    end
+end
+
+-- Fling（疑似Kick）
+function flingPlayer(target, state)
+    if not target.Character then return end
+
+    local hrp = target.Character:FindFirstChild("HumanoidRootPart")
+    local myhrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp or not myhrp then return end
+
+    task.spawn(function()
+        for i = 1, 60 do
+            if not state.Enabled then break end
+            myhrp.CFrame = hrp.CFrame * CFrame.new(0, 0, -2)
+            myhrp.Velocity = Vector3.new(9e9, 9e9, 9e9)
+            task.wait()
+        end
+        state.Enabled = false
+    end)
+end
+
+-- プレイヤー出入り時も自動更新
+Players.PlayerAdded:Connect(UpdatePlayerList)
+Players.PlayerRemoving:Connect(UpdatePlayerList)
+
+-- ===============================
+-- Kick タブ（1回だけ）
+-- ===============================
+
 local KickTab = Window:MakeTab({
     Name = "kick",
     Icon = "rbxassetid://6031094674",
@@ -599,8 +652,8 @@ local KickDropdown = KickTab:AddDropdown({
     Name = "Kickするプレイヤー",
     Default = "",
     Options = playerNames,
-    Callback = function(selectedName)
-        SelectedPlayer = playerData[selectedName]
+    Callback = function(name)
+        SelectedPlayer = playerData[name]
     end
 })
 
@@ -610,8 +663,6 @@ KickTab:AddButton({
         if SelectedPlayer then
             FlingState.Enabled = true
             flingPlayer(SelectedPlayer, FlingState)
-        else
-            warn("プレイヤーが指定されていません")
         end
     end
 })
