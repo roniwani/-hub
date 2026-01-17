@@ -242,7 +242,7 @@ end
 
 -- レインボータブ
 local LineTab = Window:MakeTab({
-Name = "Line Color",
+Name = "レインボー 🌈",
 Icon = "rbxassetid://4483345998",
 PremiumOnly = false
 })
@@ -280,7 +280,7 @@ TPTab:AddButton({ Name = "水色の家にテレポート", Callback = function()
 
 -- 翼MODタブ
 local WingTab = Window:MakeTab({
-Name = "WINGS",
+Name = "羽🪽",
 Icon = "rbxassetid://6031075927",
 PremiumOnly = false
 })
@@ -415,7 +415,7 @@ end)
 -- ESP タブ（追加のみ）
 
 local ESPTab = Window:MakeTab({
-Name = "ESP",
+Name = "ESP👁",
 Icon = "rbxassetid://4483345998",
 PremiumOnly = false
 })
@@ -586,148 +586,7 @@ WingsTargetPlayer = Players:FindFirstChild(v)
 end
 end
 })
--- ===============================
--- Kick / 指定テレポートKill
--- ===============================
 
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local LP = Players.LocalPlayer
-
--- プレイヤー管理
-local playerNames = {}
-local playerData = {}
-local SelectedPlayer = nil
-
--- 状態管理
-local FlingState = { Enabled = false }
-local TargetKill = {
-    Enabled = false,
-    Connection = nil
-}
-
--- ===============================
--- プレイヤー一覧更新
--- ===============================
-local function UpdatePlayerList()
-    table.clear(playerNames)
-    table.clear(playerData)
-
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr ~= LP then
-            table.insert(playerNames, plr.Name)
-            playerData[plr.Name] = plr
-        end
-    end
-end
-
-Players.PlayerAdded:Connect(UpdatePlayerList)
-Players.PlayerRemoving:Connect(UpdatePlayerList)
-
--- ===============================
--- Fling（疑似Kick）
--- ===============================
-local function flingPlayer(target)
-    if not target or not target.Character then return end
-
-    local hrp = target.Character:FindFirstChild("HumanoidRootPart")
-    local myhrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-    if not hrp or not myhrp then return end
-
-    FlingState.Enabled = true
-    task.spawn(function()
-        for i = 1, 60 do
-            if not FlingState.Enabled then break end
-            myhrp.CFrame = hrp.CFrame * CFrame.new(0, 0, -2)
-            myhrp.Velocity = Vector3.new(9e9, 9e9, 9e9)
-            task.wait()
-        end
-        FlingState.Enabled = false
-    end)
-end
-
-local Players = game:GetService("Players")
-local LP = Players.LocalPlayer
-
-local SelectedPlayer = SelectedPlayer -- 既にあるなら消さない
-local KillLoop = false
-
-local function TeleportAndKill(target)
-    if not (target and target.Character and LP.Character) then return end
-
-    local myHRP = LP.Character:FindFirstChild("HumanoidRootPart")
-    local targetHRP = target.Character:FindFirstChild("HumanoidRootPart")
-    local hum = target.Character:FindFirstChildOfClass("Humanoid")
-
-    if myHRP and targetHRP and hum then
-        myHRP.CFrame = targetHRP.CFrame * CFrame.new(0,0,-2)
-        task.wait(0.1)
-        hum:TakeDamage(1000)
-    end
-end
-
-
-
--- Toggle（KickTabに追加）
-KickTab:AddToggle({
-    Name = "指定テレポートKill（ループ）",
-    Default = false,
-    Callback = function(state)
-        KillLoop = state
-        if state then
-            task.spawn(function()
-                while KillLoop do
-                    if SelectedPlayer then
-                        TeleportAndKill(SelectedPlayer)
-                    end
-                    task.wait(0.3)
-                end
-            end)
-        end
-    end
-})
-
--- ===============================
--- Kick タブ
--- ===============================
-local KickTab = Window:MakeTab({
-    Name = "kick",
-    Icon = "rbxassetid://6031094674",
-    PremiumOnly = false
-})
-
-UpdatePlayerList()
-
-local KickDropdown = KickTab:AddDropdown({
-    Name = "対象プレイヤー",
-    Options = playerNames,
-    Callback = function(name)
-        SelectedPlayer = playerData[name]
-    end
-})
-
-
-KickTab:AddToggle({
-    Name = "指定テレポートKill",
-    Default = false,
-    Callback = function(Value)
-        TargetKill.Enabled = Value
-        if Value then
-            FlingState.Enabled = false
-            startTargetKill()
-        else
-            stopTargetKill()
-        end
-    end
-})
-
-KickTab:AddButton({
-    Name = "プレイヤー一覧更新",
-    Callback = function()
-        UpdatePlayerList()
-        KickDropdown:Refresh(playerNames, true)
-    end
-})
 ====================================================================
 -- UI SETUP (OrionLib)
 -- ====================================================================
@@ -962,80 +821,5 @@ DefenseTab:AddToggle({
     Default = false,
     Callback = function(Value)
         EggConfig.Defense.AntiRagdoll = Value
-    end
-})
-
-
--- ===== プレイヤー管理 =====
-local PlayerList = {}
-local PlayerMap = {}
-local SelectedPlayer = nil
-local KillLoop = false
-
-local function UpdatePlayerList()
-    table.clear(PlayerList)
-    table.clear(PlayerMap)
-
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr ~= LP then
-            table.insert(PlayerList, plr.Name)
-            PlayerMap[plr.Name] = plr
-        end
-    end
-end
-
-UpdatePlayerList()
-Players.PlayerAdded:Connect(UpdatePlayerList)
-Players.PlayerRemoving:Connect(UpdatePlayerList)
-
--- ===== Dropdown =====
-local PlayerDropdown = KickTab:AddDropdown({
-    Name = "対象プレイヤー",
-    Options = PlayerList,
-    Callback = function(name)
-        SelectedPlayer = PlayerMap[name]
-    end
-})
-
-KickTab:AddButton({
-    Name = "プレイヤー一覧更新",
-    Callback = function()
-        UpdatePlayerList()
-        PlayerDropdown:Refresh(PlayerList, true)
-    end
-})
-
--- ===== テレポートKill処理 =====
-local function TeleportAndKill(target)
-    if not target then return end
-    if not (target.Character and LP.Character) then return end
-
-    local myHRP = LP.Character:FindFirstChild("HumanoidRootPart")
-    local targetHRP = target.Character:FindFirstChild("HumanoidRootPart")
-    local hum = target.Character:FindFirstChildOfClass("Humanoid")
-
-    if myHRP and targetHRP and hum and hum.Health > 0 then
-        myHRP.CFrame = targetHRP.CFrame * CFrame.new(0, 0, -2)
-        task.wait(0.1)
-        hum.Health = 0
-    end
-end
-
--- ===== ループ Toggle =====
-KickTab:AddToggle({
-    Name = "指定テレポートKill（ループ）",
-    Default = false,
-    Callback = function(state)
-        KillLoop = state
-        if state then
-            task.spawn(function()
-                while KillLoop do
-                    if SelectedPlayer then
-                        TeleportAndKill(SelectedPlayer)
-                    end
-                    task.wait(0.3)
-                end
-            end)
-        end
     end
 })
