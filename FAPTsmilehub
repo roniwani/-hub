@@ -732,7 +732,7 @@ KickTab:AddButton({
 -- UI SETUP (OrionLib)
 -- ====================================================================
 local Window = OrionLib:MakeWindow({
-    Name = "AKI hubb2.0",
+    Name = "smile hubb2.0",
     HidePremium = false,
     SaveConfig = true,
     IntroEnabled = false
