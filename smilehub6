@@ -3,27 +3,9 @@ local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 local Window = Rayfield:CreateWindow({
     Name = "smilehub",
     LoadingTitle = "smilehub ロード中...",
-    LoadingSubtitle = "by noobScript",
-
-    ConfigurationSaving = {
-        Enabled = true,
-        FolderName = "smilehub",
-        FileName = "MainConfig"
-    },
-
     KeySystem = true,
     KeySettings = {
-        Title = "smilehub",
-        Subtitle = "キー認証",
-        Note = "キーを入力してください",
-        FileName = "smilehub_key",
-        SaveKey = true,
-        GrabKeyFromSite = false,
-
-        -- ★ 使えるキーはこれだけ
-        Key = {
-            "ibl"
-        }
+        Key = {"ibl"}
     }
 })
 
