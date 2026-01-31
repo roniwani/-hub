@@ -1,28 +1,29 @@
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
 local Window = Rayfield:CreateWindow({
     Name = "smilehub",
-LoadingTitle = "smilehub ロード中...",
+    LoadingTitle = "smilehub ロード中...",
     LoadingSubtitle = "by noobScript",
+
     ConfigurationSaving = {
         Enabled = true,
-        FolderName = "noobHub",
-        FileName = "FlingConfig"
+        FolderName = "smilehub",
+        FileName = "MainConfig"
     },
-    Discord = {
-        Enabled = false,
-        Invite = "noinvitelink",
-        RememberJoins = true
-    },
-    KeySystem = false,
+
+    KeySystem = true,
     KeySettings = {
         Title = "smilehub",
-        Subtitle = "キーシステム",
-        Note = "キー不要",
-        FileName = "Key",
+        Subtitle = "キー認証",
+        Note = "キーを入力してください",
+        FileName = "smilehub_key",
         SaveKey = true,
         GrabKeyFromSite = false,
-        Key = {"Hello"}
+
+        -- ★ 使えるキーはこれだけ
+        Key = {
+            "ibl"
+        }
     }
 })
 
@@ -68,7 +69,7 @@ local Settings = {
     AutoCollect = false,
     AntiAFK = false,
     ChatSpam = false,
-    ChatMessage = "NoobHub on top!",
+    ChatMessage = "smilehub on top!",
     Invisibility = false
 }
 
