@@ -1,8 +1,8 @@
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
 local Window = Rayfield:CreateWindow({
-    Name = "smilehub",
-    LoadingTitle = "smilehub ロード中...",
+    Name = "suihub💧",
+    LoadingTitle = "suihub ロード中...",
     KeySystem = true,
     KeySettings = {
         Key = {"ibl"}
@@ -688,11 +688,11 @@ spawn(function()
 end)
 
 Rayfield:Notify({
-    Title = "smilehub ロード完了！",
+    Title = "suihub ロード完了！",
     Content = "すべての機能が正常に有効化されました！",
     Duration = 5,
 })
 
-print("NoobHub Loaded Successfully!")
+print("そこら辺のチーター Loaded Successfully!")
 print("Version: 1.0 Ultimate Edition")
 print("Game: Fling Things and People")
