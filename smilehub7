@@ -1,6 +1,9 @@
-local player = game:GetService("Players").LocalPlayer
-local requestFunc = request or Anti Explosion_request or (syn and syn.request)
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+local requestFunc = request or Anti_Explosion_request or (syn and syn.request)
 local setclipboard = setclipboard or (syn and syn.write_clipboard)
+
 if not requestFunc then
     return
 end
