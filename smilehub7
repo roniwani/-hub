@@ -8436,3 +8436,6 @@ arasuTab:AddToggle({
 })
 
 OrionLib:Init()
+print("smilehub7 READY")
+findHumanoidCreature()
+print("findHumanoidCreature EXECUTED")
