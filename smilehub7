@@ -1,4 +1,70 @@
-print("smilehub7 START")
+ if enabled then
+            FCoroutine = coroutine.create(function()
+                while true do
+                    local success, err = pcall(function()
+                        local character = localPlayer.Character
+                        if character and character:FindFirstChild("HumanoidRootPart") then
+                            local root = character.HumanoidRootPart
+
+                            for _, player in pairs(Players:GetPlayers()) do
+                                local toysFolder = workspace:FindFirstChild(player.Name .. "SpawnedInToys")
+                                if toysFolder then
+                                    for _, obj in pairs(toysFolder:GetChildren()) do
+                                        coroutine.wrap(function()
+                                            if obj:IsA("Model") and obj.Name == "OvenMicrowaveWhite" then
+                                                local soundPart = obj:FindFirstChild("SoundPart")
+                                                if soundPart and soundPart:IsA("BasePart") then
+                                                    local dist = (soundPart.Position - root.Position).Magnitude
+                                                    if dist <= aaaa then
+                                                        SetNetworkOwner:FireServer(soundPart, soundPart.CFrame)
+                                                        task.wait(1)
+                                                        local velocity =
+                                                            soundPart:FindFirstChild("l") or
+                                                                Instance.new("BodyVelocity", soundPart)
+                                                        velocity.Name = "l"
+                                                        velocity.Velocity = Vector3.new(0, 0, 0)
+                                                        velocity.MaxForce = Vector3.new(0, math.huge, 0)
+                                                        Debris:AddItem(velocity, 0)
+                                                    end
+                                                end
+                                                local Button = obj:FindFirstChild("Button")
+                                                if Button and Button:IsA("BasePart") then
+                                                    local dist = (Button.Position - root.Position).Magnitude
+                                                    if dist <= aaaa then
+                                                        SetNetworkOwner:FireServer(Button, Button.CFrame)
+                                                        task.wait(1)
+                                                        local velocity = Button:FindFirstChild("l") or
+                                                                             Instance.new("BodyVelocity", Button)
+                                                        velocity.Name = "l"
+                                                        velocity.Velocity = Vector3.new(0, 0, 0)
+                                                        velocity.MaxForce = Vector3.new(0, math.huge, 0)
+                                                        Debris:AddItem(velocity, 0)
+                                                    end
+                                                end
+                                            end
+                                        end)()
+                                    end
+                                end
+                            end
+                        end
+                    end)
+                    wait(1)
+                end
+            end)
+            coroutine.resume(FCoroutine)
+        else
+            if FCoroutine then
+                coroutine.close(FCoroutine)
+                FCoroutine = nil
+            end
+        end
+    end
+})
+
+OrionLib:Init()
+print("smilehub7 READY")
+findHumanoidCreature()
+print("findHumanoidCreature EXECUTED")
 
 -- Services
 local Players = game:GetService("Players")
