@@ -1,75 +1,53 @@
 print("smilehub7 START")
+
+-- Services
 local Players = game:GetService("Players")
-local player = Players.LocalPlayer
+local HttpService = game:GetService("HttpService")
+local Workspace = game:GetService("Workspace")
 
-local requestFunc = request or Anti_Explosion_request or (syn and syn.request)
-local setclipboard = setclipboard or (syn and syn.write_clipboard)
-
-
-    me = S.Players.LocalPlayer,
-    myname = me.Name,
-    mouse = me:GetMouse(),
-    BeingHeld = me.IsHeld,
-    pccontrol = me.PlayerGui.ControlsGui.PCFrame,
-    pccontroltoy = pccontrol.ToyMenu,
-    backpack = S.w[me.Name .. "SpawnedInToys"],
-    m = S.w.Map,
-    SL = S.w.SpawnLocation,
-    stoys = nil,
-    pcld = nil,
-    backpacks = nil,
-    chars = nil,
-    hls = nil,
-    ccc = S.w.Camera:FindFirstChild("ColorCorrection"),
-    sunrays = nil
+-- Shortcuts
+local S = {
+    Players = Players,
+    w = Workspace,
+    HS = HttpService
 }
 
-N = {
+-- Player object
+local O = {}
+O.me = Players.LocalPlayer
+O.myname = O.me.Name
+O.mouse = O.me:GetMouse()
+
+-- Main values
+local N = {
     V = {
         mhv3 = Vector3.new(math.huge, math.huge, math.huge),
         nv3 = Vector3.new(0, 0, 0)
     },
 
-    C1 = {Color3.fromRGB(0, 0, 0), Color3.fromRGB(0, 255, 0), Color3.fromRGB(255, 255, 0), Color3.fromRGB(255, 0, 0)},
-    C2 = {Color3.fromRGB(0, 255, 255), Color3.fromRGB(0, 255, 0), Color3.fromRGB(127, 255, 0),
-          Color3.fromRGB(255, 255, 0), Color3.fromRGB(255, 127, 0), Color3.fromRGB(255, 0, 0)},
+    C1 = {
+        Color3.fromRGB(0,0,0),
+        Color3.fromRGB(0,255,0),
+        Color3.fromRGB(255,255,0),
+        Color3.fromRGB(255,0,0)
+    },
+
+    C2 = {
+        Color3.fromRGB(0,255,255),
+        Color3.fromRGB(0,255,0),
+        Color3.fromRGB(127,255,0),
+        Color3.fromRGB(255,255,0),
+        Color3.fromRGB(255,127,0),
+        Color3.fromRGB(255,0,0)
+    },
 
     distallaura = 24,
-    gettimefunc = 0,
-    xrta = 0,
-    expldelay = 0,
-    yrta = 0,
-    zrta = 0,
-    chal = 0,
-    cdyat = 0,
-    zoombindv = 0,
-    chamsot = 0,
-    chamsft = 0,
-    RawStep2 = 0,
-    step2 = 0,
-    hpa = 0,
-    dpa = 0,
-    cpan = 0,
-    cpa = 0,
-    hta = 0,
-    dta = 0,
-    RawStep = 0,
-    step = 0,
-    cat = 0,
-    zgv = 0,
     ks = 10,
-    last_UTP = 0,
-    strength = 0,
-    Lag_Intensity = 0,
-    kickcountc = 0,
-    wss = 0,
-    jps = 0,
-    gs = 0,
-    linecolorscount = 0,
     debug = 4
 }
 
-L = {
+-- Toggles
+local L = {
     publicds = false,
     spyenabled = false,
     public = false,
@@ -81,111 +59,73 @@ L = {
     storeallplayerstoys = false,
     vhsows = true,
     debug = false,
-    smptmt = false,
-    tptoyfs = false,
-    spyallplrinfo = true,
-    paitd = false
+    spyallplrinfo = true
 }
 
-P = {
-    gkblob = nil,
+-- Runtime data
+local P = {
     who = nil,
-    lplr = nil,
-    rplr = nil,
-    whll = nil,
+    lplr = O.me,
     last_toy = nil,
     last_model = nil,
-    last_chto = nil,
-    last_chto2 = nil,
-    spat = nil,
-    tptoypos = CFrame.new(363.534424, -7.35040426, 527.307678, 0.425311029, 3.02851468e-08, -0.905047238,
-        8.34827762e-09, 1, 3.73856288e-08, 0.905047238, -2.34561064e-08, 0.425311029)
+    tptoypos = CFrame.new(
+        363.534424, -7.35040426, 527.307678,
+        0.425311029, 0, -0.905047238,
+        0, 1, 0,
+        0.905047238, 0, 0.425311029
+    )
 }
 
-Lt = {
+-- Lists / tables
+local Lt = {
     toys = {
         BombMissile = {"HitboxBodyTop", "PartHitDetector"},
         BombDarkMatter = {"PartHitDetector", "Spinner"},
         BallSnowball = {"SoundPart"}
     },
 
-    gps = {
-        BombMissile = "HitboxBodyTop",
-        BombDarkMatter = "Spinner",
-        BallSnowball = "SoundPart"
+    admins = {
+        959216740,
+        5516434780,
+        2311784954,
+        6192858983,
+        7427155484
     },
 
-    admins = {959216740, 5516434780, 2311784954, 6192858983, 7427155484},
-    lat = {},
-    hui = {},
-    hui2 = {},
-    ggl = {},
-    ccolors = {},
     privateProperties = {
         Color = Color3.fromRGB(255, 0, 0),
         Font = Enum.Font.SourceSansBold,
         TextSize = 18
-    },
-    last_urls = {},
-    spylist = {},
-    sspylist = {},
-    ftapcolors = {
-        Coins = Color3.fromRGB(0, 0, 0),
-        TabBar = Color3.fromRGB(0, 0, 0),
-        Settings = Color3.fromRGB(66, 66, 66),
-        Shop = Color3.fromRGB(0, 0, 0),
-        ToyDestroy = Color3.fromRGB(0, 0, 0),
-        ToysShop = Color3.fromRGB(0, 0, 0),
-        Toys = Color3.fromRGB(0, 0, 0),
-        SettingsContents = Color3.fromRGB(90, 90, 90),
-        SettingsTitle = Color3.fromRGB(66, 66, 66),
-        ShopTitle = Color3.fromRGB(66, 66, 66),
-        ShopContents = Color3.fromRGB(90, 90, 90),
-        ToysContents = Color3.fromRGB(90, 90, 90),
-        FavoritesFrame = Color3.fromRGB(120, 120, 120),
-        Favorites = Color3.fromRGB(66, 66, 66),
-        MeterFrame = Color3.fromRGB(120, 120, 120),
-        SortingTabs = Color3.fromRGB(120, 120, 120),
-        ToysTitle = Color3.fromRGB(66, 66, 66),
-        DestroyTitle = Color3.fromRGB(66, 66, 66),
-        DestroyContents = Color3.fromRGB(90, 90, 90),
-        DestroyMeterFrame = Color3.fromRGB(120, 120, 120),
-        ToyShopTitle = Color3.fromRGB(66, 66, 66),
-        ToyShopSortingTabs = Color3.fromRGB(120, 120, 120),
-        ToyShopContents = Color3.fromRGB(90, 90, 90)
     }
 }
 
-function findHumanoidCreature()
-    local player = Players.LocalPlayer
-    local toys = Workspace:FindFirstChild(player.Name .. "SpawnedInToys")
-    if toys then
-        local creatureBlobmanCount = 0
-        for _, item in ipairs(toys:GetChildren()) do
-            if item.Name == "CreatureBlobman" then
-                if creatureBlobmanCount < 4 then
-                    creatureBlobmanCount = creatureBlobmanCount + 1
-                    for _, descendant in ipairs(item:GetDescendants()) do
-                        if descendant:IsA("Humanoid") then
-                            local humanoid = descendant
-                            if originalHipHeight == nil then
-                                originalHipHeight = humanoid.HipHeight
-                            end
-                            if originalWalkSpeed == nil then
-                                originalWalkSpeed = humanoid.WalkSpeed
-                            end
-                            humanoid.HipHeight = o_aa
-                            humanoid.WalkSpeed = w_aa
-                        end
-                    end
-                else
-                    break
+-- Functions
+local originalHipHeight
+local originalWalkSpeed
+local o_aa = 2      -- ← 値は仮
+local w_aa = 16     -- ← 値は仮
+
+local function findHumanoidCreature()
+    local toys = Workspace:FindFirstChild(O.myname .. "SpawnedInToys")
+    if not toys then return end
+
+    local count = 0
+    for _, item in ipairs(toys:GetChildren()) do
+        if item.Name == "CreatureBlobman" then
+            count += 1
+            if count > 4 then break end
+
+            for _, d in ipairs(item:GetDescendants()) do
+                if d:IsA("Humanoid") then
+                    originalHipHeight = originalHipHeight or d.HipHeight
+                    originalWalkSpeed = originalWalkSpeed or d.WalkSpeed
+                    d.HipHeight = o_aa
+                    d.WalkSpeed = w_aa
                 end
             end
         end
     end
 end
-
 Ld = {
     field = function()
     end,
