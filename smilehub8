@@ -486,7 +486,52 @@ OrionLib:Init()
 LP.CameraMode = Enum.CameraMode.Classic
 
 LP.CameraMinZoomDistance = 0.5
+-- Barrierタブ (そのまま残します)
+BarrierTab:AddToggle({
+    Name="Bye Bye Barrier",
+    Default=false,
+    Callback=function(state)
+        if state then
+            task.spawn(function()
+                local character = plr.Character or plr.CharacterAdded:Wait()
+                local hrp = character:WaitForChild("HumanoidRootPart")
+                local SpawnToyRemoteFunction = ReplicatedStorage:WaitForChild("MenuToys"):WaitForChild("SpawnToyRemoteFunction")
+                local HoldEvents = ReplicatedStorage:WaitForChild("HoldEvents"):WaitForChild("Use")
 
+                for i=1,5 do
+                    -- スポーン
+                    SpawnToyRemoteFunction:InvokeServer("FoodHamburger", CFrame.new(-12,-6,-23), Vector3.new(0,-31,0))
+                    task.wait(0.5)
+
+                    -- 掴む
+                    local toyModel = workspace:WaitForChild(plr.Name.."SpawnedInToys", 9e9):WaitForChild("FoodHamburger", 9e9)
+                    toyModel:WaitForChild("HoldPart",9e9):WaitForChild("HoldItemRemoteFunction",9e9):InvokeServer(toyModel, workspace:WaitForChild(plr.Name,9e9))
+                    task.wait(0.5)
+
+                    -- 食べる瞬間にカウント開始
+                    HoldEvents:FireServer(toyModel)
+
+                    -- 1.9秒待機
+                    task.wait(1.9)
+
+                    -- TP
+                    hrp.CFrame = CFrame.new(260,-7,443)
+
+                    task.wait(0.5)
+                end
+            end)
+        end
+    end
+})
+
+
+-- 完了通知
+OrionLib:MakeNotification({
+    Name="Wave Wing & Angel Mod Loaded!",
+    Content="Wave Wing and Angel Mode functionalities ready! Enjoy!",
+    Image="rbxassetid://4483345998",
+    Time=5
+})
 -- ESP機能
 
 local ESPEnabled = false
