@@ -1780,6 +1780,68 @@ BarrierTab:AddButton({
     end
 })
 
+-- --- 荒らし機能セクション内 ---
+
+-- 列車落としボタン
+FunTab:AddButton({
+    Name = "列車落とし",
+    Callback = function()
+        -- 必要な変数の取得（SmileHubの既存変数名に合わせているぜ）
+        local HRP = char:FindFirstChild("HumanoidRootPart")
+        local Hum = char:FindFirstChildOfClass("Humanoid")
+        
+        if not HRP or not Hum then return end
+
+        if autoSpawnBlobman == true then
+            if not newBlobman or not newBlobman.Parent then
+                -- ブロブマンを召喚
+                SpawnToyRemoteFunction:InvokeServer("CreatureBlobman", HRP.CFrame, Vector3.zero)
+                task.wait(0.5)
+                newBlobman = toysFolder:FindFirstChild("CreatureBlobman")
+            end
+            
+            if newBlobman then
+                local oldPosition = HRP.CFrame
+                local seat = newBlobman:WaitForChild("VehicleSeat", 2)
+                
+                if seat then
+                    seat:Sit(Hum) -- 座る
+                    task.wait(0.5)
+                    -- 列車破壊関数を実行
+                    if BreakTrain then 
+                        BreakTrain(newBlobman) 
+                    else
+                        OrionLib:MakeNotification({Name = "エラー", Content = "BreakTrain関数が見つかりません", Time = 3})
+                    end
+                    task.wait(0.2)
+                    Hum.Sit = false
+                    task.wait(0.1)
+                    HRP.CFrame = oldPosition -- 元の位置に戻る
+                end
+            end
+        else
+            if not newBlobman or not newBlobman.Parent then 
+                OrionLib:MakeNotification({Name = "エラー", Content = "ブロブマンがいません", Time = 3})
+                return 
+            end
+            
+            local oldPosition = HRP.CFrame
+            local seat = newBlobman:WaitForChild("VehicleSeat", 1)
+            
+            if seat then
+                seat:Sit(Hum)
+                task.wait(0.5)
+                if BreakTrain then 
+                    BreakTrain(newBlobman) 
+                end
+                task.wait(0.2)
+                Hum.Sit = false
+                HRP.CFrame = oldPosition
+            end
+        end
+    end
+})
+
 
 -- 初期設定通知
 
