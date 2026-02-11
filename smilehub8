@@ -1290,7 +1290,104 @@ hum:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
 end
 
 end)
+-- ===== ORION UI（jadpy/suki）=====
+local OrionLib = loadstring(game:HttpGet(
+    "https://raw.githubusercontent.com/jadpy/suki/refs/heads/main/orion"
+))()
 
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LP = Players.LocalPlayer
+
+-- ===== 色 =====
+local Blue = Color3.fromRGB(0, 170, 255)
+
+-- ===== Window =====
+local Window = OrionLib:MakeWindow({
+    Name = "Utility Hub",
+    HidePremium = false,
+    SaveConfig = false
+})
+
+-- ===== Theme =====
+OrionLib.Theme = {
+    Main = Color3.fromRGB(18, 18, 25),
+    Second = Color3.fromRGB(24, 24, 34),
+    Stroke = Color3.fromRGB(0, 120, 200),
+    Divider = Blue,
+    Text = Color3.fromRGB(255, 255, 255),
+    TextDark = Color3.fromRGB(180, 180, 200),
+}
+
+-- ===== Player Tab =====
+local PlayerTab = Window:MakeTab({
+    Name = "Player",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+-- ===== 設定 =====
+local Config = {
+    Speed = 16,
+    Jump = 50,
+    SpeedEnabled = false,
+    JumpEnabled = false,
+    Noclip = false
+}
+
+-- ===== Speed =====
+PlayerTab:AddSlider({
+    Name = "移動速度",
+    Min = 16,
+    Max = 1000,
+    Default = 16,
+    Increment = 1,
+    Color = Blue,
+    Callback = function(v)
+        Config.Speed = v
+    end
+})
+
+PlayerTab:AddToggle({
+    Name = "スピード有効化",
+    Default = false,
+    Color = Blue,
+    Callback = function(v)
+        Config.SpeedEnabled = v
+    end
+})
+
+-- ===== Jump =====
+PlayerTab:AddSlider({
+    Name = "ジャンプ力",
+    Min = 50,
+    Max = 500,
+    Default = 50,
+    Increment = 1,
+    Color = Blue,
+    Callback = function(v)
+        Config.Jump = v
+    end
+})
+
+PlayerTab:AddToggle({
+    Name = "ジャンプ有効化",
+    Default = false,
+    Color = Blue,
+    Callback = function(v)
+        Config.JumpEnabled = v
+    end
+})
+
+-- ===== Noclip =====
+PlayerTab:AddToggle({
+    Name = "ノークリップ",
+    Default = false,
+    Color = Blue,
+    Callback = function(v)
+        Config.Noclip = v
+    end
+})
 -- 初期設定通知
 
 OrionLib:Init()
