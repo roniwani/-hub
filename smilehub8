@@ -1290,38 +1290,9 @@ hum:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
 end
 
 end)
--- ===== ORION UI（jadpy/suki）=====
-local OrionLib = loadstring(game:HttpGet(
-    "https://raw.githubusercontent.com/jadpy/suki/refs/heads/main/orion"
-))()
-
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local LP = Players.LocalPlayer
-
--- ===== 色 =====
-local Blue = Color3.fromRGB(0, 170, 255)
-
--- ===== Window =====
-local Window = OrionLib:MakeWindow({
-    Name = "Utility Hub",
-    HidePremium = false,
-    SaveConfig = false
-})
-
--- ===== Theme =====
-OrionLib.Theme = {
-    Main = Color3.fromRGB(18, 18, 25),
-    Second = Color3.fromRGB(24, 24, 34),
-    Stroke = Color3.fromRGB(0, 120, 200),
-    Divider = Blue,
-    Text = Color3.fromRGB(255, 255, 255),
-    TextDark = Color3.fromRGB(180, 180, 200),
-}
-
--- ===== Player Tab =====
+-- ===== プレイヤータブ =====
 local PlayerTab = Window:MakeTab({
-    Name = "Player",
+    Name = "プレイヤー",
     Icon = "rbxassetid://4483345998",
     PremiumOnly = false
 })
