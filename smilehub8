@@ -1290,73 +1290,238 @@ hum:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
 end
 
 end)
--- ===== プレイヤータブ =====
+-- プレイヤー設定タブ
 local PlayerTab = Window:MakeTab({
-    Name = "プレイヤー",
-    Icon = "rbxassetid://4483345998",
+    Name = "プレイヤー設定",
+    Icon = "rbxassetid://7733793319",
     PremiumOnly = false
 })
 
--- ===== 設定 =====
-local Config = {
-    Speed = 16,
-    Jump = 50,
-    SpeedEnabled = false,
-    JumpEnabled = false,
-    Noclip = false
-}
-
--- ===== Speed =====
-PlayerTab:AddSlider({
-    Name = "移動速度",
-    Min = 16,
-    Max = 1000,
-    Default = 16,
-    Increment = 1,
-    Color = Blue,
-    Callback = function(v)
-        Config.Speed = v
-    end
+PlayerTab:AddSection({
+    Name = "ジャンプ設定"
 })
 
-PlayerTab:AddToggle({
-    Name = "スピード有効化",
-    Default = false,
-    Color = Blue,
-    Callback = function(v)
-        Config.SpeedEnabled = v
-    end
-})
-
--- ===== Jump =====
 PlayerTab:AddSlider({
     Name = "ジャンプ力",
     Min = 50,
     Max = 500,
     Default = 50,
     Increment = 1,
-    Color = Blue,
     Callback = function(v)
-        Config.Jump = v
+        EggConfig.Player.JumpValue = v
+        if EggConfig.Player.JumpEnabled then
+            local hum = getHum()
+            if hum then
+                hum.JumpPower = v
+            end
+        end
     end
 })
 
 PlayerTab:AddToggle({
-    Name = "ジャンプ有効化",
+    Name = "ジャンプブースト",
     Default = false,
-    Color = Blue,
     Callback = function(v)
-        Config.JumpEnabled = v
+        EggConfig.Player.JumpEnabled = v
+        local hum = getHum()
+        if hum then
+            if v then
+                hum.JumpPower = EggConfig.Player.JumpValue
+            end
+        end
     end
 })
 
--- ===== Noclip =====
+PlayerTab:AddSection({
+    Name = "スピード設定"
+})
+
+PlayerTab:AddSlider({
+    Name = "スピード値",
+    Min = 16,
+    Max = 200,
+    Default = 16,
+    Increment = 1,
+    Callback = function(v)
+        EggConfig.Player.SpeedValue = v
+        if EggConfig.Player.SpeedEnabled then
+            local hum = getHum()
+            if hum then
+                hum.WalkSpeed = v
+            end
+        end
+    end
+})
+
+PlayerTab:AddToggle({
+    Name = "スピードブースト",
+    Default = false,
+    Callback = function(v)
+        EggConfig.Player.SpeedEnabled = v
+        local hum = getHum()
+        if hum then
+            if v then
+                hum.WalkSpeed = EggConfig.Player.SpeedValue
+            end
+        end
+    end
+})
+
+PlayerTab:AddSection({
+    Name = "その他設定"
+})
+
 PlayerTab:AddToggle({
     Name = "ノークリップ",
     Default = false,
-    Color = Blue,
     Callback = function(v)
-        Config.Noclip = v
+        EggConfig.Player.Noclip = v
+    end
+})
+
+-- オーラ機能タブ
+local AuraTab = Window:MakeTab({
+    Name = "オーラ機能",
+    Icon = "rbxassetid://7733793319",
+    PremiumOnly = false
+})
+
+AuraTab:AddSection({ Name = "基本オーラ" })
+
+AuraTab:AddToggle({ Name = "キルオーラ", Default = false, Callback = function(v) Config.Aura.KillAura = v end })
+AuraTab:AddToggle({ Name = "奈落オーラ", Default = false, Callback = function(v) Config.Aura.VoidAura = v end })
+AuraTab:AddToggle({ Name = "ラグドールオーラ", Default = false, Callback = function(v) Config.Aura.RagdollAura = v end })
+AuraTab:AddToggle({ Name = "ぶっ飛ばしオーラ", Default = false, Callback = function(v) Config.Aura.BlastAura = v end })
+AuraTab:AddToggle({ Name = "回転オーラ", Default = false, Callback = function(v) Config.Aura.SpinAura = v end })
+AuraTab:AddToggle({ Name = "投げ飛ばしオーラ", Default = false, Callback = function(v) Config.Aura.FlingAura = v end })
+AuraTab:AddToggle({ Name = "足遅オーラ", Default = false, Callback = function(v) Config.Aura.SlowLegsAura = v end })
+AuraTab:AddToggle({ Name = "イライラオーラ", Default = false, Callback = function(v) Config.Aura.IrritateAura = v end })
+
+AuraTab:AddSection({ Name = "パラメータ設定" })
+
+AuraTab:AddSlider({ Name = "オーラ半径", Min = 10, Max = 500, Default = 100, Increment = 10, Callback = function(v) Config.Aura.Radius = v end })
+AuraTab:AddSlider({ Name = "オーラ高さ", Min = 10, Max = 500, Default = 100, Increment = 10, Callback = function(v) Config.Aura.Height = v end })
+AuraTab:AddSlider({ Name = "吹っ飛ばし威力", Min = 1000, Max = 10000, Default = 5000, Increment = 100, Callback = function(v) Config.Aura.BlastPower = v end })
+AuraTab:AddSlider({ Name = "回転速度", Min = 10, Max = 500, Default = 100, Increment = 10, Callback = function(v) Config.Aura.SpinSpeed = v end })
+AuraTab:AddSlider({ Name = "投げ飛ばし威力", Min = 1000, Max = 10000, Default = 3000, Increment = 100, Callback = function(v) Config.Aura.FlingPower = v end })
+AuraTab:AddSlider({ Name = "足の遅さ", Min = 1, Max = 16, Default = 5, Increment = 1, Callback = function(v) Config.Aura.SlowLegsSpeed = v end })
+AuraTab:AddSlider({ Name = "イライラ強度", Min = 10, Max = 100, Default = 30, Increment = 5, Callback = function(v) Config.Aura.IrritateIntensity = v end })
+-- 掴み機能タブ
+local GrabTab = Window:MakeTab({
+    Name = "掴み機能",
+    Icon = "rbxassetid://7733798691",
+    PremiumOnly = false
+})
+
+GrabTab:AddSection({
+    Name = "掴みオプション"
+})
+
+GrabTab:AddToggle({
+    Name = "キック掴み",
+    Default = false,
+    Callback = function(Value)
+        EggConfig.Grab.KickGrab = Value
+    end
+})
+
+GrabTab:AddToggle({
+    Name = "キル掴み",
+    Default = false,
+    Callback = function(Value)
+        EggConfig.Grab.KillGrab = Value
+    end
+})
+
+GrabTab:AddToggle({
+    Name = "奈落掴み",
+    Default = false,
+    Callback = function(Value)
+        EggConfig.Grab.VoidGrab = Value
+    end
+})
+
+GrabTab:AddToggle({
+    Name = "固定掴み",
+    Default = false,
+    Callback = function(Value)
+        EggConfig.Grab.AnchorGrab = Value
+    end
+})
+
+GrabTab:AddSection({
+    Name = "投げる強さ設定"
+})
+
+GrabTab:AddToggle({
+    Name = "投げる強さON/OFF",
+    Default = false,
+    Callback = function(Value)
+        EggConfig.Grab.ThrowEnabled = Value
+    end
+})
+
+GrabTab:AddSlider({
+    Name = "投げる強さ",
+    Min = 0,
+    Max = 1000,
+    Default = 250,
+    Color = Color3.fromRGB(255, 255, 255),
+    Increment = 10,
+    ValueName = "強さ",
+    Callback = function(Value)
+        EggConfig.Grab.ThrowPower = Value
+    end
+})
+
+-- 防御機能タブ
+local DefenseTab = Window:MakeTab({
+    Name = "防御機能",
+    Icon = "rbxassetid://6034509993",
+    PremiumOnly = false
+})
+
+DefenseTab:AddSection({
+    Name = "防御オプション"
+})
+
+DefenseTab:AddToggle({
+    Name = "アンチ掴み",
+    Default = false,
+    Callback = function(Value)
+        EggConfig.Defense.AntiGrab = Value
+    end
+})
+
+DefenseTab:AddToggle({
+    Name = "アンチ奈落",
+    Default = false,
+    Callback = function(Value)
+        EggConfig.Defense.AntiVoid = Value
+    end
+})
+
+DefenseTab:AddToggle({
+    Name = "アンチ爆発",
+    Default = false,
+    Callback = function(Value)
+        EggConfig.Defense.AntiExplode = Value
+    end
+})
+
+DefenseTab:AddToggle({
+    Name = "アンチグッチ",
+    Default = false,
+    Callback = function(Value)
+        EggConfig.Defense.AntiGucci = Value
+    end
+})
+
+DefenseTab:AddToggle({
+    Name = "アンチラグドール",
+    Default = false,
+    Callback = function(Value)
+        EggConfig.Defense.AntiRagdoll = Value
     end
 })
 -- 初期設定通知
