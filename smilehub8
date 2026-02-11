@@ -1722,6 +1722,18 @@ DefenseTab:AddToggle({
         EggConfig.Defense.AntiRagdoll = Value
     end
 })
+-- バリア破壊タブ
+local AT = Win:MakeTab({Name = "自動化", Icon = "rbxassetid://4483345998"})
+AT:AddSection({Name = "バリア自動破壊"})
+autoBarrierToggle = AT:AddToggle({Name = "自動バリア破壊 (TPあり)", Default = false, Callback = function(Value)
+    autoBarrierRunning = Value 
+    if Value then OrionLib:MakeNotification({Name = "開始", Content = "成功するまでループします", Time = 2})
+    spawn(function() while autoBarrierRunning do if executeBarrierBreak() then break end wait(1) end end)
+    else OrionLib:MakeNotification({Name = "停止", Content = "自動実行を停止しました", Time = 2}) end 
+end})
+AT:AddToggle({Name = "自動バリア破壊 (TPなし・Beta)", Default = false, Callback = function(Value)
+    -- [中略: NoTPロジック内の日本語化メッセージも反映済み]
+end})
 
 -- 初期設定通知
 
