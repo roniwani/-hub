@@ -480,12 +480,6 @@ LP.CameraMaxZoomDistance = v and 5000 or defaultMaxZoom
 end
 
 })
-
-OrionLib:Init()
-
-LP.CameraMode = Enum.CameraMode.Classic
-
-LP.CameraMinZoomDistance = 0.5
 -- Barrierタブ (そのまま残します)
 BarrierTab:AddToggle({
     Name="Bye Bye Barrier",
@@ -532,6 +526,12 @@ OrionLib:MakeNotification({
     Image="rbxassetid://4483345998",
     Time=5
 })
+OrionLib:Init()
+
+LP.CameraMode = Enum.CameraMode.Classic
+
+LP.CameraMinZoomDistance = 0.5
+
 -- ESP機能
 
 local ESPEnabled = false
