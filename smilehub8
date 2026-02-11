@@ -1290,13 +1290,33 @@ hum:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
 end
 
 end)
--- プレイヤー設定タブ
+-- ===== Config初期化 =====
+EggConfig = EggConfig or {}
+
+EggConfig.Player = {
+    JumpValue = 50,
+    JumpEnabled = false,
+    SpeedValue = 16,
+    SpeedEnabled = false,
+    Noclip = false
+}
+
+-- ===== Humanoid取得関数 =====
+local function getHum()
+    local plr = game:GetService("Players").LocalPlayer
+    if plr and plr.Character then
+        return plr.Character:FindFirstChildOfClass("Humanoid")
+    end
+end
+
+-- ===== プレイヤー設定タブ =====
 local PlayerTab = Window:MakeTab({
     Name = "プレイヤー設定",
     Icon = "rbxassetid://7733793319",
     PremiumOnly = false
 })
 
+-- ===== ジャンプ設定 =====
 PlayerTab:AddSection({
     Name = "ジャンプ設定"
 })
@@ -1327,11 +1347,14 @@ PlayerTab:AddToggle({
         if hum then
             if v then
                 hum.JumpPower = EggConfig.Player.JumpValue
+            else
+                hum.JumpPower = 50 -- 元に戻す
             end
         end
     end
 })
 
+-- ===== スピード設定 =====
 PlayerTab:AddSection({
     Name = "スピード設定"
 })
@@ -1362,11 +1385,14 @@ PlayerTab:AddToggle({
         if hum then
             if v then
                 hum.WalkSpeed = EggConfig.Player.SpeedValue
+            else
+                hum.WalkSpeed = 16 -- 元に戻す
             end
         end
     end
 })
 
+-- ===== その他設定 =====
 PlayerTab:AddSection({
     Name = "その他設定"
 })
@@ -1379,34 +1405,196 @@ PlayerTab:AddToggle({
     end
 })
 
--- オーラ機能タブ
+-- ===== オーラ設定テーブル =====
+Config = Config or {}
+
+Config.Aura = {
+    KillAura = false,
+    VoidAura = false,
+    RagdollAura = false,
+    BlastAura = false,
+    SpinAura = false,
+    FlingAura = false,
+    SlowLegsAura = false,
+    IrritateAura = false,
+
+    Radius = 100,
+    Height = 100,
+    BlastPower = 5000,
+    SpinSpeed = 100,
+    FlingPower = 3000,
+    SlowLegsSpeed = 5,
+    IrritateIntensity = 30
+}
+
+-- ===== オーラ機能タブ =====
 local AuraTab = Window:MakeTab({
     Name = "オーラ機能",
     Icon = "rbxassetid://7733793319",
     PremiumOnly = false
 })
 
-AuraTab:AddSection({ Name = "基本オーラ" })
+AuraTab:AddSection({
+    Name = "基本オーラ"
+})
 
-AuraTab:AddToggle({ Name = "キルオーラ", Default = false, Callback = function(v) Config.Aura.KillAura = v end })
-AuraTab:AddToggle({ Name = "奈落オーラ", Default = false, Callback = function(v) Config.Aura.VoidAura = v end })
-AuraTab:AddToggle({ Name = "ラグドールオーラ", Default = false, Callback = function(v) Config.Aura.RagdollAura = v end })
-AuraTab:AddToggle({ Name = "ぶっ飛ばしオーラ", Default = false, Callback = function(v) Config.Aura.BlastAura = v end })
-AuraTab:AddToggle({ Name = "回転オーラ", Default = false, Callback = function(v) Config.Aura.SpinAura = v end })
-AuraTab:AddToggle({ Name = "投げ飛ばしオーラ", Default = false, Callback = function(v) Config.Aura.FlingAura = v end })
-AuraTab:AddToggle({ Name = "足遅オーラ", Default = false, Callback = function(v) Config.Aura.SlowLegsAura = v end })
-AuraTab:AddToggle({ Name = "イライラオーラ", Default = false, Callback = function(v) Config.Aura.IrritateAura = v end })
+AuraTab:AddToggle({
+    Name = "キルオーラ",
+    Default = false,
+    Callback = function(v)
+        Config.Aura.KillAura = v
+    end
+})
 
-AuraTab:AddSection({ Name = "パラメータ設定" })
+AuraTab:AddToggle({
+    Name = "奈落オーラ",
+    Default = false,
+    Callback = function(v)
+        Config.Aura.VoidAura = v
+    end
+})
 
-AuraTab:AddSlider({ Name = "オーラ半径", Min = 10, Max = 500, Default = 100, Increment = 10, Callback = function(v) Config.Aura.Radius = v end })
-AuraTab:AddSlider({ Name = "オーラ高さ", Min = 10, Max = 500, Default = 100, Increment = 10, Callback = function(v) Config.Aura.Height = v end })
-AuraTab:AddSlider({ Name = "吹っ飛ばし威力", Min = 1000, Max = 10000, Default = 5000, Increment = 100, Callback = function(v) Config.Aura.BlastPower = v end })
-AuraTab:AddSlider({ Name = "回転速度", Min = 10, Max = 500, Default = 100, Increment = 10, Callback = function(v) Config.Aura.SpinSpeed = v end })
-AuraTab:AddSlider({ Name = "投げ飛ばし威力", Min = 1000, Max = 10000, Default = 3000, Increment = 100, Callback = function(v) Config.Aura.FlingPower = v end })
-AuraTab:AddSlider({ Name = "足の遅さ", Min = 1, Max = 16, Default = 5, Increment = 1, Callback = function(v) Config.Aura.SlowLegsSpeed = v end })
-AuraTab:AddSlider({ Name = "イライラ強度", Min = 10, Max = 100, Default = 30, Increment = 5, Callback = function(v) Config.Aura.IrritateIntensity = v end })
--- 掴み機能タブ
+AuraTab:AddToggle({
+    Name = "ラグドールオーラ",
+    Default = false,
+    Callback = function(v)
+        Config.Aura.RagdollAura = v
+    end
+})
+
+AuraTab:AddToggle({
+    Name = "ぶっ飛ばしオーラ",
+    Default = false,
+    Callback = function(v)
+        Config.Aura.BlastAura = v
+    end
+})
+
+AuraTab:AddToggle({
+    Name = "回転オーラ",
+    Default = false,
+    Callback = function(v)
+        Config.Aura.SpinAura = v
+    end
+})
+
+AuraTab:AddToggle({
+    Name = "投げ飛ばしオーラ",
+    Default = false,
+    Callback = function(v)
+        Config.Aura.FlingAura = v
+    end
+})
+
+AuraTab:AddToggle({
+    Name = "足遅オーラ",
+    Default = false,
+    Callback = function(v)
+        Config.Aura.SlowLegsAura = v
+    end
+})
+
+AuraTab:AddToggle({
+    Name = "イライラオーラ",
+    Default = false,
+    Callback = function(v)
+        Config.Aura.IrritateAura = v
+    end
+})
+
+AuraTab:AddSection({
+    Name = "パラメータ設定"
+})
+
+AuraTab:AddSlider({
+    Name = "オーラ半径",
+    Min = 10,
+    Max = 500,
+    Default = 100,
+    Increment = 10,
+    Callback = function(v)
+        Config.Aura.Radius = v
+    end
+})
+
+AuraTab:AddSlider({
+    Name = "オーラ高さ",
+    Min = 10,
+    Max = 500,
+    Default = 100,
+    Increment = 10,
+    Callback = function(v)
+        Config.Aura.Height = v
+    end
+})
+
+AuraTab:AddSlider({
+    Name = "吹っ飛ばし威力",
+    Min = 1000,
+    Max = 10000,
+    Default = 5000,
+    Increment = 100,
+    Callback = function(v)
+        Config.Aura.BlastPower = v
+    end
+})
+
+AuraTab:AddSlider({
+    Name = "回転速度",
+    Min = 10,
+    Max = 500,
+    Default = 100,
+    Increment = 10,
+    Callback = function(v)
+        Config.Aura.SpinSpeed = v
+    end
+})
+
+AuraTab:AddSlider({
+    Name = "投げ飛ばし威力",
+    Min = 1000,
+    Max = 10000,
+    Default = 3000,
+    Increment = 100,
+    Callback = function(v)
+        Config.Aura.FlingPower = v
+    end
+})
+
+AuraTab:AddSlider({
+    Name = "足の遅さ",
+    Min = 1,
+    Max = 16,
+    Default = 5,
+    Increment = 1,
+    Callback = function(v)
+        Config.Aura.SlowLegsSpeed = v
+    end
+})
+
+AuraTab:AddSlider({
+    Name = "イライラ強度",
+    Min = 10,
+    Max = 100,
+    Default = 30,
+    Increment = 5,
+    Callback = function(v)
+        Config.Aura.IrritateIntensity = v
+    end
+})
+-- ===== 掴み設定テーブル =====
+EggConfig = EggConfig or {}
+
+EggConfig.Grab = {
+    KickGrab = false,
+    KillGrab = false,
+    VoidGrab = false,
+    AnchorGrab = false,
+    ThrowEnabled = false,
+    ThrowPower = 250
+}
+
+-- ===== 掴み機能タブ =====
 local GrabTab = Window:MakeTab({
     Name = "掴み機能",
     Icon = "rbxassetid://7733798691",
@@ -1466,7 +1654,6 @@ GrabTab:AddSlider({
     Min = 0,
     Max = 1000,
     Default = 250,
-    Color = Color3.fromRGB(255, 255, 255),
     Increment = 10,
     ValueName = "強さ",
     Callback = function(Value)
@@ -1474,7 +1661,18 @@ GrabTab:AddSlider({
     end
 })
 
--- 防御機能タブ
+-- ===== 防御設定テーブル =====
+local EggConfig = {
+    Defense = {
+        AntiGrab = false,
+        AntiVoid = false,
+        AntiExplode = false,
+        AntiGucci = false,
+        AntiRagdoll = false
+    }
+}
+
+-- ===== 防御機能タブ =====
 local DefenseTab = Window:MakeTab({
     Name = "防御機能",
     Icon = "rbxassetid://6034509993",
@@ -1524,6 +1722,7 @@ DefenseTab:AddToggle({
         EggConfig.Defense.AntiRagdoll = Value
     end
 })
+
 -- 初期設定通知
 
 OrionLib:Init()
