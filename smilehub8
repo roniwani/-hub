@@ -1722,18 +1722,73 @@ DefenseTab:AddToggle({
         EggConfig.Defense.AntiRagdoll = Value
     end
 })
--- バリア破壊タブ
+-- バリア破壊セクションの独立タブ化
 local AT = Win:MakeTab({Name = "自動化", Icon = "rbxassetid://4483345998"})
-AT:AddSection({Name = "バリア自動破壊"})
-autoBarrierToggle = AT:AddToggle({Name = "自動バリア破壊 (TPあり)", Default = false, Callback = function(Value)
-    autoBarrierRunning = Value 
-    if Value then OrionLib:MakeNotification({Name = "開始", Content = "成功するまでループします", Time = 2})
-    spawn(function() while autoBarrierRunning do if executeBarrierBreak() then break end wait(1) end end)
-    else OrionLib:MakeNotification({Name = "停止", Content = "自動実行を停止しました", Time = 2}) end 
+
+AT:AddSection({Name = "バリア自動破壊システム"})
+
+-- TPありバージョンのトグル
+autoBarrierToggle = AT:AddToggle({
+    Name = "自動バリア破壊 (TPあり)", 
+    Default = false, 
+    Callback = function(Value)
+        autoBarrierRunning = Value 
+        if Value then 
+            OrionLib:MakeNotification({Name = "システム始動", Content = "バリア破壊に成功するまでループ実行します...", Time = 3})
+            spawn(function() 
+                while autoBarrierRunning do 
+                    local result = executeBarrierBreak() 
+                    if result then 
+                        -- 成功したらトグルをオフにする
+                        autoBarrierRunning = false
+                        autoBarrierToggle:Set(false)
+                        break 
+                    end 
+                    task.wait(1.5) 
+                end 
+            end)
+        else 
+            OrionLib:MakeNotification({Name = "システム停止", Content = "自動バリア破壊を中止しました", Time = 2}) 
+        end 
+    end
+})
+
+-- TPなしバージョンのトグル (Beta)
+AT:AddToggle({
+    Name = "自動バリア破壊 (TPなし・Beta)", 
+    Default = false, 
+    Callback = function(Value)
+        autoBarrierNoTPRunning = Value
+        if Value then
+            OrionLib:MakeNotification({Name = "Beta始動", Content = "TPなしモードで破壊を試みます...", Time = 3})
+            spawn(function()
+                while autoBarrierNoTPRunning do
+                    -- 前のチャットで書いたNoTPロジックをここで呼び出す
+                    -- (ロジックが長いので、executeBarrierNoTP() という関数名で別途定義しておくのがスマートだぜ)
+                    local result = executeBarrierNoTP() -- もし関数化してなければ、ここに直接ロジックをぶち込む
+                    if result then
+                        autoBarrierNoTPRunning = false
+                        break
+                    end
+                    task.wait(1.5)
+                end
+            end)
+        else
+            OrionLib:MakeNotification({Name = "Beta停止", Content = "TPなしモードを停止しました", Time = 2})
+        end
 end})
-AT:AddToggle({Name = "自動バリア破壊 (TPなし・Beta)", Default = false, Callback = function(Value)
-    -- [中略: NoTPロジック内の日本語化メッセージも反映済み]
-end})
+
+AT:AddSection({Name = "手動コントロール"})
+
+AT:AddButton({
+    Name = "今すぐバリアを破壊 (単発実行)", 
+    Callback = function()
+        executeBarrierBreak()
+    end
+})
+
+AT:AddParagraph("使い方と注意点", "・家の中にいるとエラーになるから、必ず外で実行してくれ。\n・実行中はキャラクターが一時的に動けなくなるが、故障じゃないぜ。")
+
 
 -- 初期設定通知
 
