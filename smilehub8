@@ -1780,67 +1780,147 @@ BarrierTab:AddButton({
     end
 })
 
--- --- 荒らし機能セクション内 ---
+-- [[ 楽しいタブ：ここからコピー ]]
 
--- 列車落としボタン
-FunTab:AddButton({
-    Name = "列車落とし",
-    Callback = function()
-        -- 必要な変数の取得（SmileHubの既存変数名に合わせているぜ）
-        local HRP = char:FindFirstChild("HumanoidRootPart")
-        local Hum = char:FindFirstChildOfClass("Humanoid")
-        
-        if not HRP or not Hum then return end
+-- ===== 楽しいタブ (SmileHub Edition) =====
+local FunTab = Window:MakeTab({
+    Name = "楽しい",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
 
-        if autoSpawnBlobman == true then
-            if not newBlobman or not newBlobman.Parent then
-                -- ブロブマンを召喚
-                SpawnToyRemoteFunction:InvokeServer("CreatureBlobman", HRP.CFrame, Vector3.zero)
-                task.wait(0.5)
-                newBlobman = toysFolder:FindFirstChild("CreatureBlobman")
+-- --- クレジットセクション ---
+FunTab:AddSection({
+    Name = "SmileHub 開発メンバー"
+})
+FunTab:AddLabel("SmileHubのグループ")
+FunTab:AddLabel("id : gegdgmvs35..表示名suu")
+FunTab:AddLabel("id : Hello838338383")
+FunTab:AddLabel("id : MidoriMiroru_73816")
+FunTab:AddLabel("id : ftapplayer_LOL")
+
+-- --- お珍珍MODセクション ---
+FunTab:AddSection({
+    Name = "お珍珍MODオプション"
+})
+
+FunTab:AddToggle({
+    Name = "ぼっきしたちんちん",
+    Default = false,
+    Callback = function(v) AutoPencil = v end
+})
+
+FunTab:AddToggle({
+    Name = "普通のお珍珍",
+    Default = false,
+    Callback = function(v) AutoKunai = v end
+})
+
+-- --- 特殊アクションセクション ---
+FunTab:AddSection({
+    Name = "特殊アクション"
+})
+
+FunTab:AddToggle({
+    Name = "UFO触る",
+    Default = false,
+    Callback = function(state)
+        -- UFO触るロジック開始
+        if not state then return end
+        local StickyEvent = ReplicatedStorage:WaitForChild("PlayerEvents"):WaitForChild("StickyPartEvent")
+        local SpawnRemote = ReplicatedStorage.MenuToys:WaitForChild("SpawnToyRemoteFunction")
+        local CanSpawn = plr:WaitForChild("CanSpawnToy")
+        local ToysFolder = workspace:WaitForChild(plr.Name .. "SpawnedInToys")
+        local UFOs = {
+            workspace.Map.AlwaysHereTweenedObjects:FindFirstChild("InnerUFO"),
+            workspace.Map.AlwaysHereTweenedObjects:FindFirstChild("OuterUFO")
+        }
+        task.spawn(function()
+            for i = 1, 12 do
+                if not state then break end
+                pcall(function() SpawnRemote:InvokeServer("NinjaShuriken", char.Head.CFrame * CFrame.new(0, 10, 15), Vector3.new()) end)
+                task.wait(0.15)
             end
-            
-            if newBlobman then
-                local oldPosition = HRP.CFrame
-                local seat = newBlobman:WaitForChild("VehicleSeat", 2)
-                
-                if seat then
-                    seat:Sit(Hum) -- 座る
-                    task.wait(0.5)
-                    -- 列車破壊関数を実行
-                    if BreakTrain then 
-                        BreakTrain(newBlobman) 
-                    else
-                        OrionLib:MakeNotification({Name = "エラー", Content = "BreakTrain関数が見つかりません", Time = 3})
+            task.wait(1)
+            for _, Toy in ipairs(ToysFolder:GetChildren()) do
+                if Toy.Name == "NinjaShuriken" and Toy:FindFirstChild("StickyPart") then
+                    for _, UFO in ipairs(UFOs) do
+                        if UFO and UFO:FindFirstChild("Object") then
+                            StickyEvent:FireServer(Toy.StickyPart, UFO.Object.ObjectModel.Body, CFrame.new())
+                        end
                     end
-                    task.wait(0.2)
-                    Hum.Sit = false
-                    task.wait(0.1)
-                    HRP.CFrame = oldPosition -- 元の位置に戻る
                 end
             end
+        end)
+    end
+})
+
+-- --- 荒らし機能セクション ---
+FunTab:AddSection({
+    Name = "荒らし機能 (取り扱い注意)"
+})
+
+FunTab:AddLabel("食べたらオンにしてゲロかけてください")
+
+-- ゲロ掛けALL
+local bringingEnabled = false
+local bringCoroutine = nil
+FunTab:AddToggle({
+    Name = "ゲロかけALL",
+    Default = false,
+    Callback = function(value)
+        bringingEnabled = value
+        if bringingEnabled then
+            bringCoroutine = coroutine.create(function()
+                while bringingEnabled do
+                    local charPos = char and char:FindFirstChild("HumanoidRootPart")
+                    if charPos then
+                        local targetPos = charPos.Position + Vector3.new(1.5, 0, 0)
+                        for _, p in ipairs(game.Players:GetPlayers()) do
+                            if p ~= plr and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                                if not (_G.furend and plr:IsFriendsWith(p.UserId)) then
+                                    p.Character.HumanoidRootPart.CFrame = CFrame.new(targetPos)
+                                end
+                            end
+                        end
+                    end
+                    task.wait()
+                end
+            end)
+            coroutine.resume(bringCoroutine)
         else
-            if not newBlobman or not newBlobman.Parent then 
-                OrionLib:MakeNotification({Name = "エラー", Content = "ブロブマンがいません", Time = 3})
-                return 
-            end
-            
-            local oldPosition = HRP.CFrame
-            local seat = newBlobman:WaitForChild("VehicleSeat", 1)
-            
-            if seat then
-                seat:Sit(Hum)
-                task.wait(0.5)
-                if BreakTrain then 
-                    BreakTrain(newBlobman) 
-                end
-                task.wait(0.2)
-                Hum.Sit = false
-                HRP.CFrame = oldPosition
-            end
+            bringingEnabled = false
         end
     end
 })
+
+-- マップ全体スパム
+FunTab:AddToggle({
+    Name = "マップ全体スパム (強力)",
+    Default = false,
+    Callback = function(v) mapSpamActive = v end
+})
+
+-- UFO落とし
+FunTab:AddButton({
+    Name = "UFO落とし",
+    Callback = function()
+        -- 内部ロジック呼び出し
+        executeObjectBreak("UFO")
+    end
+})
+
+-- 列車落とし
+FunTab:AddButton({
+    Name = "列車落とし",
+    Callback = function()
+        -- 内部ロジック呼び出し
+        executeObjectBreak("Train")
+    end
+})
+
+-- [[ 楽しいタブ：ここまでコピー ]]
+
 
 
 -- 初期設定通知
