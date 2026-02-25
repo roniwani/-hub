@@ -1093,65 +1093,128 @@ end
 
 })
 
--- サイレントエイム
 
-local SilentEnabled = false
+ -- [[ エイム機能タブの作成 ]]
+local AimTab = Window:MakeTab({
+    Name = "エイム機能",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
 
-local SilentMaxStuds = 40
+-- スクリプト内の変数をOrionと連動させるための設定
+_G.SilentAimEnabled = false
+_G.AimDistance = 30
 
-local SATab = Window:MakeTab({Name = "サイレントエイム", Icon = "rbxassetid://4483345998"})
+AimTab:AddSection({
+    Name = "サイレントエイム (Raycast Hook)"
+})
 
-SATab:AddToggle({ Name = "Silent aim", Default = false, Callback = function(v) SilentEnabled = v end })
+-- サイレントエイムのON/OFF
+AimTab:AddToggle({
+    Name = "サイレントエイム有効化",
+    Default = false,
+    Callback = function(Value)
+        _G.SilentAimEnabled = Value
+        if Value then
+            OrionLib:MakeNotification({
+                Name = "エイム起動",
+                Content = "視界内の敵への弾道を自動補正します",
+                Time = 2
+            })
+        end
+    end
+})
 
-SATab:AddSlider({ Name = "最大補正距離", Min = 0, Max = 50, Default = 40, Increment = 1, Callback = function(v) SilentMaxStuds = v end })
+-- 有効距離の調整
+AimTab:AddSlider({
+    Name = "有効距離 (Studs)",
+    Min = 10,
+    Max = 500,
+    Default = 30,
+    Increment = 5,
+    ValueName = "距離",
+    Callback = function(Value)
+        _G.AimDistance = Value
+    end
+})
 
-local function GetClosestPlayer()
+-- --- 以下、お前の持ってきたロジックの統合 ---
 
-local Closest, Distance = nil, 10000
+local Hitbox = {"Head", "Torso", "Left Leg", "Right Leg"}
 
-for _, Player in next, Players:GetPlayers() do
-
-if Player ~= LP and Player.Character and Player.Character:FindFirstChild("Head") then
-
-local Head = Player.Character.Head
-
-local ScreenPos, IsVisible = workspace.CurrentCamera:WorldToScreenPoint(Head.Position)
-
-if IsVisible then
-
-local _Distance = (Vector2.new(LP:GetMouse().X, LP:GetMouse().Y) - Vector2.new(ScreenPos.X, ScreenPos.Y)).Magnitude
-
-if _Distance <= Distance and (workspace.CurrentCamera.CFrame.Position - Head.Position).Magnitude <= SilentMaxStuds then
-
-Closest = Head; Distance = _Distance
-
+-- 最も近い敵を取得する関数
+local function GetClosest()
+    local Target, Closest = nil, math.huge
+    for _, player in pairs(PS:GetPlayers()) do
+        if player ~= localPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local char = player.Character
+            local myChar = localPlayer.Character
+            if myChar and myChar:FindFirstChild("HumanoidRootPart") then
+                local myPos = myChar.HumanoidRootPart.Position
+                local targetHRP = char.HumanoidRootPart
+                local screenPos, onScreen = Cam:WorldToScreenPoint(targetHRP.Position)
+                
+                if onScreen then
+                    local distance = (myPos - targetHRP.Position).Magnitude
+                    if distance < Closest then
+                        Closest = distance
+                        Target = player
+                    end
+                end
+            end
+        end
+    end
+    return Target
 end
 
-end
-
-end
-
-end
-
-return Closest
-
-end
-
-local oldNamecall; oldNamecall = hookmetamethod(game, "__namecall", function(...)
-
-local Method = getnamecallmethod(); local Args = {...}
-
-if SilentEnabled and Method == "Raycast" and Args[1] == workspace then
-
-local Hit = GetClosestPlayer()
-
-if Hit then Args[3] = (Hit.Position - Args[2]).Unit * SilentMaxStuds; return oldNamecall(unpack(Args)) end
-
-end
-
-return oldNamecall(...)
-
+local CurrentTarget = nil
+R.RenderStepped:Connect(function()
+    CurrentTarget = GetClosest()
 end)
+
+local function CalculateDirection(Origin, Destination, Length)
+    return (Destination - Origin).Unit * Length
+end
+
+-- メタメソッド・フック（ここが核心だぜ）
+if hookmetamethod then
+    local __namecall
+    __namecall = hookmetamethod(game, "__namecall", function(self, ...)
+        local args = {...}
+        local method = getnamecallmethod()
+
+        if self == workspace and not checkcaller() and method == "Raycast" and _G.SilentAimEnabled then
+            if CurrentTarget and CurrentTarget.Character and CurrentTarget.Character:FindFirstChild("HumanoidRootPart") then
+                local char = CurrentTarget.Character
+                local myChar = localPlayer.Character
+                
+                -- 各種条件チェック（体力、プロット外など）
+                if myChar and myChar:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
+                    -- ターゲットがプロットにいないかチェック（お前のコードにあったやつだぜ）
+                    local inPlot = CurrentTarget:FindFirstChild("InPlot")
+                    if not (inPlot and inPlot.Value == true) then
+                        local distance = (myChar.HumanoidRootPart.Position - char.HumanoidRootPart.Position).Magnitude
+                        
+                        if distance <= _G.AimDistance then
+                            local partn = Hitbox[math.random(1, #Hitbox)]
+                            local targetPart = char:FindFirstChild(partn)
+                            
+                            if targetPart then
+                                args[2] = CalculateDirection(args[1], targetPart.Position, 1000)
+                                local params = RaycastParams.new()
+                                params.FilterDescendantsInstances = {char}
+                                params.FilterType = Enum.RaycastFilterType.Include
+                                args[3] = params
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        return __namecall(self, unpack(args))
+    end)
+end
+
 
 -- ブロブマン自動
 
