@@ -1,109 +1,101 @@
--- [[ 1. 重複防止：古いUIを徹底的に消去 ]]
-for _, v in ipairs(game:GetService("CoreGui"):GetChildren()) do
-    if v.Name == "smilehub" or v:FindFirstChild("Main") then
-        v:Destroy()
-    end
-end
+local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/jadpy/suki/refs/heads/main/orion"))()
 
--- [[ 2. 標準Orion Library ロード ]]
-local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Orion/main/source"))()
-
--- [[ 3. ウィンドウ作成 ]]
 local Window = OrionLib:MakeWindow({
-    Name = "smilehub",
-    HidePremium = false,
-    SaveConfig = false,
-    IntroEnabled = false,
-    Keybind = "M"
+    Name = "Orion UI",
+    HidePremium = true,
+    SaveConfig = true,
+    ConfigFolder = "FullOrion"
 })
 
--- グローバル変数
-local LP = game.Players.LocalPlayer
-local RS = game:GetService("RunService")
-local EggConfig = { Speed = 16, SpeedEnabled = false, Jump = 50, JumpEnabled = false }
-local SpinEnabled = false
-local SpinSpeed = 10
-
--- [[ 4. メインタブ（1画面ですべて操作） ]]
-local Main = Window:MakeTab({ Name = "Main", Icon = "" })
-
--- --- プレイヤー設定 ---
-Main:AddToggle({ Name = "スピード有効化", Default = false, Callback = function(v) EggConfig.SpeedEnabled = v end })
-Main:AddSlider({ Name = "歩行速度", Min = 16, Max = 500, Default = 16, Increment = 1, Callback = function(v) EggConfig.Speed = v end })
-
--- --- ブロブマン・キル ---
-local selectedPlayer = nil
-local playerDropdown = Main:AddDropdown({
-    Name = "ターゲット選択",
-    Options = {"読み込み中..."},
-    Callback = function(v) selectedPlayer = v end
+local Tab = Window:MakeTab({
+    Name = "Main",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
 })
 
-local function UpdatePlayerList()
-    local t = {}
-    for _, p in ipairs(game.Players:GetPlayers()) do
-        if p ~= LP then table.insert(t, p.Name) end
+local Section = Tab:AddSection({
+    Name = "All Widgets"
+})
+
+-- 固定表示（ラベル）
+Tab:AddLabel("これは固定テキスト")
+
+-- ボタン
+Tab:AddButton({
+    Name = "ボタン",
+    Callback = function()
+        OrionLib:MakeNotification({
+            Name = "Button",
+            Content = "押された",
+            Time = 2
+        })
     end
-    playerDropdown:Refresh(t, true)
-end
-Main:AddButton({ Name = "プレイヤーリスト更新", Callback = UpdatePlayerList })
+})
 
-Main:AddButton({ Name = "キック実行 (ブロブマン)", Callback = function() 
-    -- ここにさっきのキックロジックが走るぜ
-    OrionLib:MakeNotification({Name = "SmileHub", Content = (selectedPlayer or "なし") .. "を攻撃中", Time = 2})
-end })
-
--- --- 楽しい機能 ---
-Main:AddToggle({ Name = "高速回転 (右スピン)", Default = false, Callback = function(v) SpinEnabled = v end })
-Main:AddSlider({ Name = "回転速度", Min = 1, Max = 100, Default = 10, Increment = 1, Callback = function(v) SpinSpeed = v end })
-Main:AddToggle({ Name = "ぼっきしたちんちん (MOD)", Default = false, Callback = function() end })
-Main:AddButton({ Name = "UFO落とし", Callback = function() end })
-Main:AddButton({ Name = "列車落とし", Callback = function() end })
-
--- --- オートフリング ---
-local autoFling = false
-Main:AddToggle({ Name = "サイレント・オートフリング", Default = false, Callback = function(v) autoFling = v end })
-
--- [[ 5. 実行メインループ ]]
-task.spawn(function()
-    while task.wait(0.1) do
-        pcall(function()
-            local char = LP.Character
-            local hum = char and char:FindFirstChildOfClass("Humanoid")
-            local hrp = char and char:FindFirstChild("HumanoidRootPart")
-
-            -- スピード
-            if hum and EggConfig.SpeedEnabled then
-                hum.WalkSpeed = EggConfig.Speed
-            end
-
-            -- 回転
-            if hrp and SpinEnabled then
-                hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(SpinSpeed), 0)
-            end
-            
-            -- オートフリング (簡易版)
-            if autoFling and hrp then
-                for _, p in ipairs(game.Players:GetPlayers()) do
-                    if p ~= LP and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-                        local targetHRP = p.Character.HumanoidRootPart
-                        if (hrp.Position - targetHRP.Position).Magnitude < 100 then
-                            local oldCF = hrp.CFrame
-                            hrp.CFrame = targetHRP.CFrame * CFrame.new(0.5, 0, 0.5) * CFrame.Angles(0, math.rad(tick()*1000 % 360), 0)
-                            hrp.Velocity = Vector3.new(500, 500, 500)
-                            task.wait(0.05)
-                            hrp.CFrame = oldCF
-                            hrp.Velocity = Vector3.new(0, 0, 0)
-                        end
-                    end
-                end
-            end
-        end)
+-- トグル
+Tab:AddToggle({
+    Name = "トグル",
+    Default = false,
+    Callback = function(v)
+        print("Toggle:", v)
     end
-end)
+})
+
+-- スライダー
+Tab:AddSlider({
+    Name = "スライダー",
+    Min = 0,
+    Max = 100,
+    Default = 50,
+    Increment = 1,
+    ValueName = "%",
+    Callback = function(v)
+        print("Slider:", v)
+    end
+})
+
+-- 選択（ドロップダウン）
+Tab:AddDropdown({
+    Name = "選択",
+    Default = "A",
+    Options = {"A","B","C","D"},
+    Callback = function(v)
+        print("Dropdown:", v)
+    end
+})
+
+-- カラーピッカー
+Tab:AddColorpicker({
+    Name = "カラー変更",
+    Default = Color3.fromRGB(255, 0, 0),
+    Callback = function(v)
+        print("Color:", v)
+    end
+})
+
+-- キーバインド
+Tab:AddBind({
+    Name = "キー設定",
+    Default = Enum.KeyCode.F,
+    Hold = false,
+    Callback = function()
+        print("Key Pressed")
+    end
+})
+
+-- テキスト入力
+Tab:AddTextbox({
+    Name = "テキスト",
+    Default = "",
+    TextDisappear = true,
+    Callback = function(v)
+        print("Text:", v)
+    end
+})
 
 OrionLib:Init()
-UpdatePlayerList()-- レインボーライン機能ロジック --
+
+-- レインボーライン機能ロジック --
 
 local originalColors
 
