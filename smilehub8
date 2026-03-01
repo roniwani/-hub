@@ -1,30 +1,32 @@
--- [[ 1. 重複起動を「物理的に」完全に防ぐ ]]
-local guiName = "smilehub" -- ここをウィンドウ名と共通にする
-for _, v in ipairs(game.CoreGui:GetChildren()) do
-    if v.Name == guiName or v:FindFirstChild("Main") then
+-- [[ 1. 旧Orionを根こそぎ破壊する (名前に関わらず消す) ]]
+local coreGui = game:GetService("CoreGui")
+for _, v in ipairs(coreGui:GetChildren()) do
+    if v:FindFirstChild("Main") or v.Name == "smilehub" or v.Name == "Orion" then
         v:Destroy()
     end
 end
 
--- [[ 2. Orion Library ロード ]]
-local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/BlizTBr/scripts/main/Orion%20X"))()
+-- [[ 2. ライブラリ読み込み (安定版に変更) ]]
+local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/jensonhirst/Orion/main/source"))()
 
--- [[ 3. ウィンドウ作成 ]]
+-- [[ 3. ウィンドウ作成 (重複防止用の識別子を追加) ]]
 local Window = OrionLib:MakeWindow({
-    Name = guiName, -- ここをguiName変数に合わせることで確実に消せる
-    HidePremium = false,
-    SaveConfig = true,
-    ConfigFolder = "OrionTest",
+    Name = "smilehub", 
+    HidePremium = false, 
+    SaveConfig = false, -- 一旦Falseにしてエラーを防ぐぜ
+    ConfigFolder = "SmileHubConfig",
     IntroEnabled = true,
-    IntroText = "SmileHub Rainbow Loaded",
+    IntroText = "SmileHub Loading...",
     Keybind = "M"
 })
 
--- [[ 4. タブ作成の前に一瞬待つ（タブ消失バグ対策） ]]
-task.wait(0.2)
+-- [[ 重要：ウィンドウが完全に生成されるまで待機 ]]
+repeat task.wait() until coreGui:FindFirstChild("smilehub")
+task.wait(0.5) -- タブ消失を防ぐための「ダメ押し」の待ち時間だぜ！
 
--- ここから下に Tab1:MakeTab(...) などを続けて書くんだぜ！
-
+-- ==========================================
+-- ここから下に各タブ（PlayerTab, KillTabなど）を続けてくれ！
+-- ==========================================
 -- レインボーライン機能ロジック ---
 
 local originalColors
