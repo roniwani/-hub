@@ -1,5 +1,20 @@
+-- smaihub
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local Players = game:GetService("Players")
+local LP = Players.LocalPlayer
 
+-- 指定されたソースコードからOrionをロード
+local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/jadpy/suki/refs/heads/main/orion"))()
 
+-- ウィンドウ作成
+local Window = OrionLib:MakeWindow({
+Name = "FTAPsmilehub V2.5",
+HidePremium = false,
+SaveConfig = true,
+ConfigFolder = "OrionTest"
+})
 -- レインボーライン機能ロジック --
 
 local originalColors
