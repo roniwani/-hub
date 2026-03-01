@@ -1,35 +1,34 @@
--- [[ 1. 旧Orionと全ての残骸を「物理的に」一掃する ]]
-local function ForceClear()
+-- [[ 1. 古いメニューを徹底的に掃除（これがないと2つ出る） ]]
+local function Cleanup()
     for _, v in ipairs(game:GetService("CoreGui"):GetChildren()) do
-        -- Orionに関連しそうな名前を全部狙い撃ちでDestroy
-        if v.Name == "smilehub" or v:FindFirstChild("Main") or v:FindFirstChild("Orion") then
+        if v.Name == "smilehub" or v:FindFirstChild("Main") then
             v:Destroy()
         end
     end
-    task.wait(0.3) -- 完全に消え去るまで一瞬待つ
 end
+Cleanup()
 
-ForceClear() -- 実行！
-
--- [[ 2. Orion Library ロード (一番安定している公式ソースを使用) ]]
-local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Orion/main/source"))()
+-- [[ 2. Orion Library ロード (最強に安定しているJenson版を使用) ]]
+-- ※ここが読み込めないと起動しないから、一番安定してるURLに変えたぜ！
+local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/jensonhirst/Orion/main/source"))()
 
 -- [[ 3. ウィンドウ作成 ]]
 local Window = OrionLib:MakeWindow({
     Name = "smilehub", 
     HidePremium = false, 
-    SaveConfig = false, -- Deltaでバグる原因No.1なのでオフにするぜ
-    ConfigFolder = "SmileHub_V2",
+    SaveConfig = false, -- Deltaの保存バグを防ぐために必ずfalseに
+    ConfigFolder = "SmileHub_Fix",
     IntroEnabled = true,
-    IntroText = "SmileHub System Rebooted",
+    IntroText = "SmileHub: Loading Safety Mode...",
     Keybind = "M"
 })
 
--- [[ 4. タブ作成 (ここを少し遅らせて確実に表示させる) ]]
+-- [[ 4. タブ生成を安定させるための待機 ]]
 task.wait(0.5)
 
--- ここから下に Tab1:MakeTab(...) などを続けてくれ！
-
+-- ==========================================
+-- ここから下に Tab1 = Window:MakeTab(...) を続けてくれ！
+-- ==========================================
 -- レインボーライン機能ロジック --
 
 local originalColors
