@@ -1,33 +1,36 @@
--- [[ 1. 旧Orionを根こそぎ破壊する (名前に関わらず消す) ]]
-local coreGui = game:GetService("CoreGui")
-for _, v in ipairs(coreGui:GetChildren()) do
-    if v:FindFirstChild("Main") or v.Name == "smilehub" or v.Name == "Orion" then
-        v:Destroy()
+-- [[ 1. 旧Orionと全ての残骸を「物理的に」一掃する ]]
+local function ForceClear()
+    for _, v in ipairs(game:GetService("CoreGui"):GetChildren()) do
+        -- Orionに関連しそうな名前を全部狙い撃ちでDestroy
+        if v.Name == "smilehub" or v:FindFirstChild("Main") or v:FindFirstChild("Orion") then
+            v:Destroy()
+        end
     end
+    task.wait(0.3) -- 完全に消え去るまで一瞬待つ
 end
 
--- [[ 2. ライブラリ読み込み (安定版に変更) ]]
-local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/jensonhirst/Orion/main/source"))()
+ForceClear() -- 実行！
 
--- [[ 3. ウィンドウ作成 (重複防止用の識別子を追加) ]]
+-- [[ 2. Orion Library ロード (一番安定している公式ソースを使用) ]]
+local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Orion/main/source"))()
+
+-- [[ 3. ウィンドウ作成 ]]
 local Window = OrionLib:MakeWindow({
     Name = "smilehub", 
     HidePremium = false, 
-    SaveConfig = false, -- 一旦Falseにしてエラーを防ぐぜ
-    ConfigFolder = "SmileHubConfig",
+    SaveConfig = false, -- Deltaでバグる原因No.1なのでオフにするぜ
+    ConfigFolder = "SmileHub_V2",
     IntroEnabled = true,
-    IntroText = "SmileHub Loading...",
+    IntroText = "SmileHub System Rebooted",
     Keybind = "M"
 })
 
--- [[ 重要：ウィンドウが完全に生成されるまで待機 ]]
-repeat task.wait() until coreGui:FindFirstChild("smilehub")
-task.wait(0.5) -- タブ消失を防ぐための「ダメ押し」の待ち時間だぜ！
+-- [[ 4. タブ作成 (ここを少し遅らせて確実に表示させる) ]]
+task.wait(0.5)
 
--- ==========================================
--- ここから下に各タブ（PlayerTab, KillTabなど）を続けてくれ！
--- ==========================================
--- レインボーライン機能ロジック ---
+-- ここから下に Tab1:MakeTab(...) などを続けてくれ！
+
+-- レインボーライン機能ロジック --
 
 local originalColors
 
