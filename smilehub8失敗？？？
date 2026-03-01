@@ -1,21 +1,36 @@
--- smaihub
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
-local Players = game:GetService("Players")
-local LP = Players.LocalPlayer
+-- [[ 1. 古いUIを消去（重複防止） ]]
+pcall(function()
+    for _, v in ipairs(game:GetService("CoreGui"):GetChildren()) do
+        if v.Name == "Orion" or v:FindFirstChild("Main") then
+            v:Destroy()
+        end
+    end
+end)
 
--- 指定されたソースコードからOrionをロード
-local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/jadpy/suki/refs/heads/main/orion"))()
+-- [[ 2. Orion Library ロード ]]
+local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Orion/main/source"))()
 
--- ウィンドウ作成
+-- [[ 3. ウィンドウ作成 ]]
 local Window = OrionLib:MakeWindow({
-Name = "FTAPsmilehub V2.5",
-HidePremium = false,
-SaveConfig = true,
-ConfigFolder = "OrionTest"
+    Name = "Orion Menu", 
+    HidePremium = false, 
+    SaveConfig = false, 
+    IntroEnabled = false -- 即起動
 })
--- レインボーライン機能ロジック --
+
+-- [[ 4. メインタブ（1画面） ]]
+local Main = Window:MakeTab({
+    Name = "Main",
+    Icon = "rbxassetid://4483345998"
+})
+
+-- とりあえず見た目だけのパーツを並べといたぜ
+Main:AddToggle({ Name = "Toggle Test", Default = false, Callback = function() end })
+Main:AddSlider({ Name = "Slider Test", Min = 0, Max = 100, Default = 50, Increment = 1, Callback = function() end })
+Main:AddButton({ Name = "Button Test", Callback = function() end })
+
+-- [[ 5. 最後に初期化（これがないと出ない） ]]
+OrionLib:Init()-- レインボーライン機能ロジック --
 
 local originalColors
 
