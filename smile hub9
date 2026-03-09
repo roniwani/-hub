@@ -1869,11 +1869,13 @@ BarrierTab:AddButton({
     end
 })
 
--- ===== 楽しいタブ =====
+-- [[ 制御変数：すべて保持 ]]
 local char = LP.Character or LP.CharacterAdded:Wait()
 local mapSpamActive = false
 local AutoPencil = false
 local AutoKunai = false
+local SaturnEnabled = false
+local SaturnMode = "Sphere"
 
 local FunTab = Window:MakeTab({
     Name = "楽しい",
@@ -1881,25 +1883,40 @@ local FunTab = Window:MakeTab({
     PremiumOnly = false
 })
 
+-- 1. 開発メンバーセクション（保持）
 FunTab:AddSection({ Name = "SmileHub 開発メンバー" })
 FunTab:AddLabel("id : gegdgmvs35..表示名suu")
 FunTab:AddLabel("id : Hello838338383")
 FunTab:AddLabel("id : MidoriMiroru_73816")
 FunTab:AddLabel("id : ftapplayer_LOL")
 
-FunTab:AddSection({ Name = "お珍珍MODオプション" })
+-- 2. 土星エフェクトセクション（新規追加）
+FunTab:AddSection({ Name = "神の力：土星エフェクト" })
+FunTab:AddToggle({
+    Name = "土星エフェクト ON/OFF",
+    Default = false,
+    Callback = function(v) SaturnEnabled = v end
+})
+FunTab:AddDropdown({
+    Name = "土星モード切替",
+    Default = "Sphere",
+    Options = {"Sphere", "Rotate"},
+    Callback = function(v) SaturnMode = v end
+})
 
+-- 3. お珍珍MODオプション（保持）
+FunTab:AddSection({ Name = "お珍珍MODオプション" })
 local function togglePencil(state)
     local c = LP.Character
     if c and c:FindFirstChild("HumanoidRootPart") then
+        -- ここに元のペンシル処理があれば記述（現状は空枠を維持）
     end
 end
-
 FunTab:AddToggle({ Name = "ぼっきしたちんちん", Default = false, Callback = function(v) togglePencil(v) end })
 FunTab:AddToggle({ Name = "普通のお珍珍", Default = false, Callback = function(v) togglePencil(v) end })
 
+-- 4. 特殊アクション（保持）
 FunTab:AddSection({ Name = "特殊アクション" })
-
 local function breakObject(objName)
     pcall(function()
         local target = nil
@@ -1908,7 +1925,6 @@ local function breakObject(objName)
         elseif objName == "Train" then
             target = workspace.Map:FindFirstChild("Train", true) or workspace.Map:FindFirstChild("TrainEngine", true)
         end
-        
         if target then
             for _, v in ipairs(target:GetDescendants()) do
                 if v:IsA("BasePart") then
@@ -1923,13 +1939,12 @@ local function breakObject(objName)
         end
     end)
 end
-
 FunTab:AddButton({ Name = "UFO落とし", Callback = function() breakObject("UFO") end })
 FunTab:AddButton({ Name = "列車落とし", Callback = function() breakObject("Train") end })
 
+-- 5. 荒らし機能（保持）
 FunTab:AddSection({ Name = "荒らし機能 (取り扱い注意)" })
 FunTab:AddLabel("食べたらオンにしてゲロかけてください")
-
 local bringingEnabled = false
 FunTab:AddToggle({
     Name = "ゲロかけALL (Bring All)",
@@ -1937,14 +1952,61 @@ FunTab:AddToggle({
     Callback = function(value) bringingEnabled = value end
 })
 
+-- [[ 土星実行ループ：お前のロジックを1ミリも変えずに実装 ]]
+task.spawn(function()
+    local parts = {}
+    local count = 20
+    local c = { Speed = 2, Size = 10, Height = 5, Back = 0, Wave = true, WaveSpeed = 2, WaveAmp = 2 }
+    local shape = {}
+    for i = 1, 36 do
+        local angle = math.rad(i * 10)
+        table.insert(shape, Vector3.new(math.cos(angle), 0, math.sin(angle)))
+    end
+
+    while task.wait() do
+        if SaturnEnabled then
+            local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                local time = tick()
+                for i = 1, count do
+                    if not parts[i] then
+                        local p = Instance.new("Part", workspace)
+                        p.Size = Vector3.new(1, 1, 1)
+                        p.Anchored, p.CanCollide = true, false
+                        p.BrickColor = BrickColor.new("Bright yellow")
+                        parts[i] = p
+                    end
+                    local mode, ratio, pos = SaturnMode, i / count, Vector3.zero
+                    if mode == "Sphere" then
+                        local phi = math.acos(-1 + (2 * i) / count)
+                        local theta = math.sqrt(count * math.pi) * phi + time * c.Speed
+                        pos = Vector3.new(c.Size * math.cos(theta) * math.sin(phi), c.Size * math.sin(theta) * math.sin(phi) + c.Height, c.Size * math.cos(phi) + c.Back)
+                    elseif mode == "Rotate" then
+                        local speed, totalPoints = c.Speed, #shape
+                        local cycle = (time * speed * 0.1 + ratio) % 1
+                        local currentStep = cycle * totalPoints
+                        local idx1, idx2 = math.floor(currentStep) % totalPoints + 1, (math.floor(currentStep) + 1) % totalPoints + 1
+                        local p = shape[idx1]:Lerp(shape[idx2], currentStep % 1)
+                        local rotAngle = time * speed * 0.3
+                        local rotX = p.X * math.cos(rotAngle) - p.Z * math.sin(rotAngle)
+                        local rotZ = p.X * math.sin(rotAngle) + p.Z * math.cos(rotAngle)
+                        pos = Vector3.new(rotX * c.Size, c.Height + (math.sin(time * c.WaveSpeed + i * 0.5) * c.WaveAmp), rotZ * c.Size + c.Back)
+                    end
+                    parts[i].CFrame = hrp.CFrame * CFrame.new(pos)
+                end
+            end
+        else
+            for i, p in pairs(parts) do p:Destroy() parts[i] = nil end
+        end
+    end
+end)
+
+-- [[ ゲロかけALLループ（保持） ]]
 task.spawn(function()
     while task.wait(0.1) do
         pcall(function()
-            local c = LP.Character
-            local hrp = c and c:FindFirstChild("HumanoidRootPart")
-            if not hrp then return end
-
-            if bringingEnabled then
+            local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+            if bringingEnabled and hrp then
                 local targetPos = hrp.CFrame * CFrame.new(0, 0, -3)
                 for _, p in ipairs(game.Players:GetPlayers()) do
                     if p ~= LP and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
@@ -1955,7 +2017,6 @@ task.spawn(function()
         end)
     end
 end)
-
 -- [[ キル（リスキル）タブ ]]
 local killTab = Window:MakeTab({
     Name = "キル",
