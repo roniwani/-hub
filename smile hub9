@@ -1125,23 +1125,30 @@ end
 
 })
 
--- [[ サイレントオート・タブ ]]
+-- [[ 端末判別・制御変数 ]]
+local isMobile = (game:GetService("UserInputService").TouchEnabled and not game:GetService("UserInputService").KeyboardEnabled)
+local autoFlingEnabled = false
+local flingDistance = 100
+
+-- [[ サイレントオート・タブ（統合版） ]]
 local SilentAutoTab = Window:MakeTab({
     Name = "サイレントオート",
     Icon = "rbxassetid://4483345998",
     PremiumOnly = false
 })
 
-local autoFlingEnabled = false
-local flingDistance = 100
-
 SilentAutoTab:AddToggle({
     Name = "セーフ・オートフリング有効化",
     Default = false,
     Callback = function(v)
         autoFlingEnabled = v
+        local modeText = isMobile and "モバイル最適化モード" or "PC高精度モード"
         if v then
-            OrionLib:MakeNotification({Name = "SmileHub", Content = "自分を守りつつフリングを開始したぜ", Time = 2})
+            OrionLib:MakeNotification({
+                Name = "SmileHub", 
+                Content = modeText .. "で自分を守りつつフリングを開始したぜ", 
+                Time = 2
+            })
         end
     end
 })
@@ -1153,18 +1160,20 @@ SilentAutoTab:AddSlider({
     Callback = function(v) flingDistance = v end
 })
 
+-- [[ 統合フリング実行エンジン ]]
 task.spawn(function()
     while task.wait() do
         if autoFlingEnabled then
             pcall(function()
-                local char = LP.Character
+                local lp = game.Players.LocalPlayer
+                local char = lp.Character
                 local hrp = char and char:FindFirstChild("HumanoidRootPart")
                 
                 if hrp then
                     local target, closest = nil, flingDistance
-                    
-                    for _, p in pairs(Players:GetPlayers()) do
-                        if p ~= LP and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                    -- ターゲット検索（両OS共通の最適化ロジック） 
+                    for _, p in pairs(game.Players:GetPlayers()) do
+                        if p ~= lp and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
                             local d = (hrp.Position - p.Character.HumanoidRootPart.Position).Magnitude
                             if d < closest then
                                 closest = d
@@ -1177,10 +1186,19 @@ task.spawn(function()
                         local tHRP = target.Character.HumanoidRootPart
                         local oldCF = hrp.CFrame
                         
-                        hrp.CFrame = tHRP.CFrame * CFrame.new(0.5, 0, 0.5) * CFrame.Angles(0, math.rad(tick()*10000 % 360), 0)
-                        hrp.Velocity = Vector3.new(500, 500, 500)
+                        -- 端末ごとにフリングの挙動を切り替え
+                        if isMobile then
+                            -- モバイル用：hookmetamethod環境でも安定する高出力フリング [cite: 11, 12]
+                            hrp.CFrame = tHRP.CFrame * CFrame.new(0, 0, 1) * CFrame.Angles(math.rad(90), 0, 0)
+                            hrp.Velocity = Vector3.new(1000, 1000, 1000)
+                            task.wait(0.1)
+                        else
+                            -- PC用：CameraClone環境で視点がブレない超高速回転フリング [cite: 1, 7]
+                            hrp.CFrame = tHRP.CFrame * CFrame.new(0, 0, 0.5) * CFrame.Angles(0, math.rad(tick()*10000 % 360), 0)
+                            hrp.Velocity = Vector3.new(500, 500, 500)
+                            task.wait(0.05)
+                        end
                         
-                        task.wait(0.05)
                         hrp.CFrame = oldCF
                         hrp.Velocity = Vector3.new(0, 0, 0)
                     end
@@ -1189,7 +1207,6 @@ task.spawn(function()
         end
     end
 end)
-
 -- [[ ブロブマン・究極物理ハックタブ ]]
 local BlobmanTab = Window:MakeTab({
     Name = "ブロブマン",
@@ -2017,86 +2034,239 @@ task.spawn(function()
         end)
     end
 end)
--- [[ キル（リスキル）タブ ]]
-local killTab = Window:MakeTab({
-    Name = "キル",
-    Icon = "rbxassetid://4483345998",
+-- [[ LOOPタブ：Blitz物理・リスキル統合管理 ]]
+local LoopTab = Window:MakeTab({
+    Name = "LOOP",
+    Icon = "rbxassetid://10427807755",
     PremiumOnly = false
 })
 
-local spawnKillActive = false
-local targetPlayer = nil
+-- 制御変数（Blitzロジック用）
+local selectedLoopPlayers = {}
+local isLoopKilling = false
+local isLoopBringing = false
+local isLoopKicking = false
+local Noclipping = false
+local NoclipConnection = nil
 
-local function RefreshPlayerList()
-    local names = {}
-    local map = {}
-    for _, p in ipairs(game.Players:GetPlayers()) do
-        if p ~= game.Players.LocalPlayer then
-            local label = p.DisplayName .. " (" .. p.Name .. ")"
-            table.insert(names, label)
-            map[label] = p
-        end
-    end
-    return names, map
+-- --- Blitz内部関数 (物理・ネットワーク制御) ---
+
+local function lookAt(from, to)
+    local direction = (to - from).Unit
+    local right = direction:Cross(Vector3.new(0, 1, 0))
+    local up = right:Cross(direction)
+    return CFrame.fromMatrix(from, right, up)
 end
 
-local killNames, killMap = RefreshPlayerList()
+local function EnableNoclip()
+    if not NoclipConnection then
+        Noclipping = false
+        NoclipConnection = game:GetService("RunService").Stepped:Connect(function()
+            if Noclipping == false and LP.Character then
+                for _, part in pairs(LP.Character:GetChildren()) do
+                    if part:IsA("BasePart") and part.CanCollide and part.Name ~= "floatName" then
+                        part.CanCollide = false
+                    end
+                end
+            end
+        end)
+    end
+end
 
-local killDropdown = killTab:AddDropdown({
-    Name = "ターゲットを選択",
-    Options = killNames,
-    Callback = function(Option)
-        targetPlayer = killMap[Option]
+local function DisableNoclip()
+    if NoclipConnection then
+        NoclipConnection:Disconnect()
+        NoclipConnection = nil
+    end
+    Noclipping = true
+end
+
+local function SNOWship(part)
+    local GrabEvents = game:GetService("ReplicatedStorage"):WaitForChild("GrabEvents", 3)
+    if not GrabEvents then return end
+    local SetNetworkOwner = GrabEvents:WaitForChild("SetNetworkOwner", 3)
+    
+    if part and typeof(part) == "Instance" and SetNetworkOwner then
+        local distance = LP:DistanceFromCharacter(part.Position)
+        if LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") and distance <= 30 then
+            SetNetworkOwner:FireServer(part, lookAt(LP.Character.HumanoidRootPart.Position, part.Position))
+        end
+    end
+end
+
+local function CreateSkyVelocity(part)
+    if not part:FindFirstChild("SkyVelocity") then
+        local bv = Instance.new("BodyVelocity", part)
+        bv.Name = "SkyVelocity"
+        bv.Velocity = Vector3.new(0, 100000000000000, 0)
+        bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+    end
+end
+
+local function CheckNetworkOwnership(player)
+    if player and player.Character then
+        local head = player.Character:FindFirstChild("Head")
+        if head and head:FindFirstChild("PartOwner") and head.PartOwner.Value == LP.Name then
+            return true
+        end
+    end
+    return false
+end
+
+-- --- ターゲット管理セクション ---
+LoopTab:AddSection({ Name = "ターゲット管理" })
+
+local LoopPlayerDropdown
+local SelectedLabel = LoopTab:AddLabel("Selected: None")
+
+local function UpdateSelectedList()
+    if #selectedLoopPlayers == 0 then
+        SelectedLabel:Set("Selected: None")
+    else
+        SelectedLabel:Set("Selected: " .. table.concat(selectedLoopPlayers, ", "))
+    end
+end
+
+local function UpdateLoopPlayerList()
+    local options = {}
+    for _, player in pairs(game.Players:GetPlayers()) do
+        if player ~= LP and not table.find(selectedLoopPlayers, player.Name) then
+            table.insert(options, player.Name .. " (" .. player.DisplayName .. ")")
+        end
+    end
+    table.sort(options)
+    if LoopPlayerDropdown then LoopPlayerDropdown:Refresh(options, true) end
+end
+
+LoopPlayerDropdown = LoopTab:AddDropdown({
+    Name = "ターゲットを選択して追加",
+    Options = {},
+    Callback = function(value)
+        local playerName = string.split(value, " ")[1]
+        if not table.find(selectedLoopPlayers, playerName) then
+            table.insert(selectedLoopPlayers, playerName)
+            UpdateSelectedList()
+            UpdateLoopPlayerList()
+        end
     end
 })
 
-killTab:AddButton({
-    Name = "リスト更新",
+LoopTab:AddButton({
+    Name = "選択をリセット",
     Callback = function()
-        local n, m = RefreshPlayerList()
-        killDropdown:Refresh(n, true)
-        killMap = m
+        selectedLoopPlayers = {}
+        UpdateSelectedList()
+        UpdateLoopPlayerList()
     end
 })
 
-killTab:AddToggle({
-    Name = "ブロブマン・リスキル有効化",
+-- --- LOOPアクション実行セクション ---
+LoopTab:AddSection({ Name = "Blitz 物理ハック・ループ実行" })
+
+-- 1. LOOP KILL
+LoopTab:AddToggle({
+    Name = "ループ・キル (Kill Selected)",
     Default = false,
     Callback = function(v)
-        spawnKillActive = v
+        isLoopKilling = v
         if v then
-            if not targetPlayer then 
-                OrionLib:MakeNotification({Name = "エラー", Content = "先にターゲットを選んでくれ！", Time = 3})
-                return 
-            end
-            
-            OrionLib:MakeNotification({Name = "SmileHub", Content = targetPlayer.Name .. " の監視を開始...", Time = 3})
-            
             task.spawn(function()
-                while spawnKillActive do
-                    local blobman = findMyBlobman()
-                    if blobman and targetPlayer and targetPlayer.Character then
-                        local hrp = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
-                        local hum = targetPlayer.Character:FindFirstChildOfClass("Humanoid")
-                        
-                        if hrp and hum and hum.Health > 0 then
-                            blobman:PivotTo(hrp.CFrame * CFrame.new(0, 0, 4))
-                            task.wait(0.1)
-                            blobGrabPlayer(targetPlayer, blobman, "Left")
-                            blobGrabPlayer(targetPlayer, blobman, "Right")
-                            
-                            task.wait(0.5)
-                            blobRelease(blobman, "Left")
-                            blobRelease(blobman, "Right")
+                while isLoopKilling do
+                    for i = #selectedLoopPlayers, 1, -1 do
+                        if not isLoopKilling then break end
+                        local target = game.Players:FindFirstChild(selectedLoopPlayers[i])
+                        if target and target.Character then
+                            local root = target.Character:FindFirstChild("HumanoidRootPart")
+                            local hum = target.Character:FindFirstChildOfClass("Humanoid")
+                            if root and hum and hum.Health > 0 then
+                                EnableNoclip()
+                                SNOWship(root)
+                                if CheckNetworkOwnership(target) then
+                                    CreateSkyVelocity(root)
+                                    local ev = game:GetService("ReplicatedStorage"):FindFirstChild("GrabEvents")
+                                    if ev then ev.DestroyGrabLine:FireServer(root) end
+                                end
+                                hum:ChangeState(Enum.HumanoidStateType.Dead)
+                            end
                         end
                     end
-                    task.wait(1)
+                    task.wait(0.2)
                 end
+                DisableNoclip()
             end)
         end
     end
 })
 
+-- 2. LOOP BRING
+LoopTab:AddToggle({
+    Name = "ループ・ブリング (Bring Selected)",
+    Default = false,
+    Callback = function(v)
+        isLoopBringing = v
+        if v then
+            task.spawn(function()
+                while isLoopBringing do
+                    for i = #selectedLoopPlayers, 1, -1 do
+                        if not isLoopBringing then break end
+                        local target = game.Players:FindFirstChild(selectedLoopPlayers[i])
+                        local myHRP = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+                        if target and target.Character and myHRP then
+                            local root = target.Character:FindFirstChild("HumanoidRootPart")
+                            if root then
+                                EnableNoclip()
+                                SNOWship(root)
+                                if CheckNetworkOwnership(target) then
+                                    root.CFrame = myHRP.CFrame * CFrame.new(0, 0, -3)
+                                end
+                            end
+                        end
+                    end
+                    task.wait(0.2)
+                end
+                DisableNoclip()
+            end)
+        end
+    end
+})
+
+-- 3. LOOP KICK
+LoopTab:AddToggle({
+    Name = "ループ・キック (Kick Selected)",
+    Default = false,
+    Callback = function(v)
+        isLoopKicking = v
+        if v then
+            task.spawn(function()
+                while isLoopKicking do
+                    for i = #selectedLoopPlayers, 1, -1 do
+                        if not isLoopKicking then break end
+                        local target = game.Players:FindFirstChild(selectedLoopPlayers[i])
+                        if target and target.Character then
+                            local root = target.Character:FindFirstChild("HumanoidRootPart")
+                            if root then
+                                EnableNoclip()
+                                SNOWship(root)
+                                if CheckNetworkOwnership(target) or root.AssemblyLinearVelocity.Magnitude > 500 then
+                                    CreateSkyVelocity(root)
+                                    local ev = game:GetService("ReplicatedStorage"):FindFirstChild("GrabEvents")
+                                    if ev then ev.DestroyGrabLine:FireServer(root) end
+                                end
+                            end
+                        end
+                    end
+                    task.wait(0.2)
+                end
+                DisableNoclip()
+            end)
+        end
+    end
+})
+
+-- 初期リスト読み込み
+UpdateLoopPlayerList()
+game.Players.PlayerAdded:Connect(UpdateLoopPlayerList)
+game.Players.PlayerRemoving:Connect(UpdateLoopPlayerList)
 -- [[ 最後に1回だけ初期化 ]]
 OrionLib:Init()
 
