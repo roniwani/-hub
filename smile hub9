@@ -1885,7 +1885,6 @@ BarrierTab:AddButton({
         executeBarrierBreak(false)
     end
 })
-
 -- [[ 制御変数 ]]
 local SaturnEnabled = false
 local LP = game.Players.LocalPlayer
@@ -1904,15 +1903,15 @@ FunTab:AddLabel("id : Hello838338383")
 FunTab:AddLabel("id : MidoriMiroru_73816")
 FunTab:AddLabel("id : ftapplayer_LOL")
 
--- 2. 土星エフェクトセクション（改造版：全モード同時起動 ＆ アイテム強奪）
-FunTab:AddSection({ Name = "神の力：土星エフェクト（アイテム強奪）" })
+-- 2. 土星エフェクトセクション（アイテム専用・同時起動版）
+FunTab:AddSection({ Name = "神の力：アイテム土星" })
 FunTab:AddToggle({
-    Name = "土星エフェクト (ALLモード同時起動)",
+    Name = "アイテム土星 (おもちゃを軌道に乗せる)",
     Default = false,
     Callback = function(v) 
         SaturnEnabled = v 
         if v then
-            OrionLib:MakeNotification({Name = "SmileHub", Content = "全アイテムの所有権を奪取し、土星軌道を生成するぜ！", Time = 3})
+            OrionLib:MakeNotification({Name = "SmileHub", Content = "自分のおもちゃを支配して土星にするぜ！", Time = 3})
         end
     end
 })
@@ -1920,22 +1919,14 @@ FunTab:AddToggle({
 -- 3. お珍珍MODオプション（保持）
 FunTab:AddSection({ Name = "お珍珍MODオプション" })
 FunTab:AddToggle({ Name = "ぼっきしたちんちん", Default = false, Callback = function(v) end })
-FunTab:AddToggle({ Name = "普通のお珍珍", Default = false, Callback = function(v) end })
 
 -- 4. 特殊アクション（保持）
 FunTab:AddSection({ Name = "特殊アクション" })
 FunTab:AddButton({ Name = "UFO落とし", Callback = function() breakObject("UFO") end })
-FunTab:AddButton({ Name = "列車落とし", Callback = function() breakObject("Train") end })
 
--- 5. 荒らし機能（保持）
-FunTab:AddSection({ Name = "荒らし機能" })
-local bringingEnabled = false
-FunTab:AddToggle({ Name = "ゲロかけALL (Bring All)", Default = false, Callback = function(v) bringingEnabled = v end })
-
--- [[ 統合土星ロジック：所有権奪取 + 2モード同時実行 ]]
+-- [[ 土星実行ループ：強奪したアイテムのみを回す ]]
 task.spawn(function()
-    local parts = {} -- 予備のパーツ
-    local c = { Speed = 2, Size = 12, Height = 5, Back = 0, WaveSpeed = 2, WaveAmp = 2 }
+    local c = { Speed = 2, Size = 12, Height = 5, WaveSpeed = 2, WaveAmp = 2 }
     
     -- 回転用シェイプ
     local shape = {}
@@ -1952,7 +1943,7 @@ task.spawn(function()
                 local fws = {}
                 local allMyItems = {}
 
-                -- --- アイテム強奪ロジック：ここにお前のコードを完全統合 ---
+                -- --- 強奪ロジック：自分に関連する全アイテムを収集 ---
                 local plotsFolder = workspace:FindFirstChild("Plots")
                 local plotItemsFolder = workspace:FindFirstChild("PlotItems")
                 local spawnedToys = workspace:FindFirstChild(myName .. "SpawnedInToys")
@@ -1979,51 +1970,42 @@ task.spawn(function()
                     end
                 end
 
-                for _, item in ipairs(workspace:GetChildren()) do
-                    local ownerValue = item:FindFirstChild("Owner") or item:FindFirstChild("PartOwner")
-                    if item:IsA("Model") and ownerValue and ownerValue:IsA("StringValue") and ownerValue.Value == myName then
-                        if not table.find(allMyItems, item) then table.insert(allMyItems, item) end
-                    end
-                end
-
+                -- 全ての所有アイテムのNetworkOwnerを自分にしてリスト化
                 for _, item in ipairs(allMyItems) do
                     if item:IsA("Model") and item.PrimaryPart then
                         table.insert(fws, item)
-                        -- 所有権を自分にセット
                         for _, part in ipairs(item:GetDescendants()) do
                             if part:IsA("BasePart") then pcall(function() part:SetNetworkOwner(LP) end) end
                         end
                     end
                 end
-                -- --- アイテム強奪終了 ---
 
-                -- 強奪したアイテム + 予備パーツを軌道に乗せる
+                -- --- 土星軌道計算：強奪したアイテムを配置 ---
                 local totalItems = #fws
-                for i, item in ipairs(fws) do
-                    local pos = Vector3.zero
-                    local ratio = i / totalItems
-                    
-                    -- 同時起動：半分はSphere、半分はRotateにする、もしくはお前の好みに合わせて合成
-                    if i % 2 == 0 then
-                        -- Sphereモードの動き
-                        local phi = math.acos(-1 + (2 * i) / totalItems)
-                        local theta = math.sqrt(totalItems * math.pi) * phi + time * c.Speed
-                        pos = Vector3.new(c.Size * math.cos(theta) * math.sin(phi), c.Size * math.sin(theta) * math.sin(phi) + c.Height, c.Size * math.cos(phi))
-                    else
-                        -- Rotateモードの動き
-                        local speed, totalPoints = c.Speed, #shape
-                        local cycle = (time * speed * 0.1 + ratio) % 1
-                        local currentStep = cycle * totalPoints
-                        local idx1 = math.floor(currentStep) % totalPoints + 1
-                        local idx2 = (math.floor(currentStep) + 1) % totalPoints + 1
-                        local p = shape[idx1]:Lerp(shape[idx2], currentStep % 1)
-                        local rotAngle = time * speed * 0.3
-                        local rotX = p.X * math.cos(rotAngle) - p.Z * math.sin(rotAngle)
-                        local rotZ = p.X * math.sin(rotAngle) + p.Z * math.cos(rotAngle)
-                        pos = Vector3.new(rotX * c.Size, c.Height + (math.sin(time * c.WaveSpeed + i * 0.5) * c.WaveAmp), rotZ * c.Size)
-                    end
-                    
-                    if item.PrimaryPart then
+                if totalItems > 0 then
+                    for i, item in ipairs(fws) do
+                        local pos = Vector3.zero
+                        local ratio = i / totalItems
+                        
+                        -- 偶数番目はSphereモード、奇数番目はRotateモードで配置
+                        if i % 2 == 0 then
+                            local phi = math.acos(-1 + (2 * i) / totalItems)
+                            local theta = math.sqrt(totalItems * math.pi) * phi + time * c.Speed
+                            pos = Vector3.new(c.Size * math.cos(theta) * math.sin(phi), c.Size * math.sin(theta) * math.sin(phi) + c.Height, c.Size * math.cos(phi))
+                        else
+                            local speed, totalPoints = c.Speed, #shape
+                            local cycle = (time * speed * 0.1 + ratio) % 1
+                            local currentStep = cycle * totalPoints
+                            local idx1 = math.floor(currentStep) % totalPoints + 1
+                            local idx2 = (math.floor(currentStep) + 1) % totalPoints + 1
+                            local p = shape[idx1]:Lerp(shape[idx2], currentStep % 1)
+                            local rotAngle = time * speed * 0.3
+                            local rotX = p.X * math.cos(rotAngle) - p.Z * math.sin(rotAngle)
+                            local rotZ = p.X * math.sin(rotAngle) + p.Z * math.cos(rotAngle)
+                            pos = Vector3.new(rotX * c.Size, c.Height + (math.sin(time * c.WaveSpeed + i * 0.5) * c.WaveAmp), rotZ * c.Size)
+                        end
+                        
+                        -- アイテムを自分の周りの計算位置へテレポート
                         item:SetPrimaryPartCFrame(hrp.CFrame * CFrame.new(pos))
                     end
                 end
