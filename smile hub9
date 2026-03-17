@@ -1210,42 +1210,6 @@ end)
 
 })
 
--- [[ 3. 通信・検知ロジック（家貫通kickall.txtの内容を完全再現） ]]
-
-local function SetNetworkOwner(part)
-    if not part then return end
-    pcall(function()
-        -- 所有権を奪う最強の通信
-        RS.GrabEvents.SetNetworkOwner:FireServer(part, LP.Character.HumanoidRootPart.CFrame)
-    end)
-end
-
-local function findMyBlobman()
-    for _, v in ipairs(workspace:GetDescendants()) do
-        if v.Name == "CreatureBlobman" and v:FindFirstChild("VehicleSeat") then
-            local seat = v.VehicleSeat
-            local weld = seat:FindFirstChild("SeatWeld")
-            -- 自分が座っているブロブマンを特定
-            if (weld and weld.Part1 and weld.Part1:IsDescendantOf(LP.Character)) or (seat.Occupant and seat.Occupant.Parent == LP.Character) then
-                return v
-            end
-        end
-    end
-    return nil
-end
-
-local function blobGrab(target, blob, side)
-    if not target or not target.Character then return end
-    local hrp = target.Character:FindFirstChild("HumanoidRootPart")
-    local detector = blob:FindFirstChild(side .. "Detector")
-    local remote = blob:FindFirstChild("BlobmanSeatAndOwnerScript") and blob.BlobmanSeatAndOwnerScript:FindFirstChild("CreatureGrab")
-    
-    if hrp and detector and remote then
-        SetNetworkOwner(hrp) -- 物理支配を実行
-        local weld = detector:FindFirstChild(side .. "Weld")
-        pcall(function() remote:FireServer(detector, hrp, weld) end)
-    end
-end
 
 -- [[ 4. メインタブ作成 ]]
 local Tab = Window:MakeTab({
