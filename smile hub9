@@ -1886,13 +1886,10 @@ BarrierTab:AddButton({
     end
 })
 
--- [[ 制御変数：すべて保持 ]]
-local char = LP.Character or LP.CharacterAdded:Wait()
-local mapSpamActive = false
-local AutoPencil = false
-local AutoKunai = false
+-- [[ 制御変数 ]]
 local SaturnEnabled = false
-local SaturnMode = "Sphere"
+local LP = game.Players.LocalPlayer
+local myName = LP.Name
 
 local FunTab = Window:MakeTab({
     Name = "楽しい",
@@ -1900,80 +1897,47 @@ local FunTab = Window:MakeTab({
     PremiumOnly = false
 })
 
--- 1. 開発メンバーセクション（保持）
+-- 1. 開発メンバーセクション
 FunTab:AddSection({ Name = "SmileHub 開発メンバー" })
 FunTab:AddLabel("id : gegdgmvs35..表示名suu")
 FunTab:AddLabel("id : Hello838338383")
 FunTab:AddLabel("id : MidoriMiroru_73816")
 FunTab:AddLabel("id : ftapplayer_LOL")
 
--- 2. 土星エフェクトセクション（新規追加）
-FunTab:AddSection({ Name = "神の力：土星エフェクト" })
+-- 2. 土星エフェクトセクション（改造版：全モード同時起動 ＆ アイテム強奪）
+FunTab:AddSection({ Name = "神の力：土星エフェクト（アイテム強奪）" })
 FunTab:AddToggle({
-    Name = "土星エフェクト ON/OFF",
+    Name = "土星エフェクト (ALLモード同時起動)",
     Default = false,
-    Callback = function(v) SaturnEnabled = v end
-})
-FunTab:AddDropdown({
-    Name = "土星モード切替",
-    Default = "Sphere",
-    Options = {"Sphere", "Rotate"},
-    Callback = function(v) SaturnMode = v end
+    Callback = function(v) 
+        SaturnEnabled = v 
+        if v then
+            OrionLib:MakeNotification({Name = "SmileHub", Content = "全アイテムの所有権を奪取し、土星軌道を生成するぜ！", Time = 3})
+        end
+    end
 })
 
 -- 3. お珍珍MODオプション（保持）
 FunTab:AddSection({ Name = "お珍珍MODオプション" })
-local function togglePencil(state)
-    local c = LP.Character
-    if c and c:FindFirstChild("HumanoidRootPart") then
-        -- ここに元のペンシル処理があれば記述（現状は空枠を維持）
-    end
-end
-FunTab:AddToggle({ Name = "ぼっきしたちんちん", Default = false, Callback = function(v) togglePencil(v) end })
-FunTab:AddToggle({ Name = "普通のお珍珍", Default = false, Callback = function(v) togglePencil(v) end })
+FunTab:AddToggle({ Name = "ぼっきしたちんちん", Default = false, Callback = function(v) end })
+FunTab:AddToggle({ Name = "普通のお珍珍", Default = false, Callback = function(v) end })
 
 -- 4. 特殊アクション（保持）
 FunTab:AddSection({ Name = "特殊アクション" })
-local function breakObject(objName)
-    pcall(function()
-        local target = nil
-        if objName == "UFO" then
-            target = workspace.Map:FindFirstChild("UFO", true) or workspace.Map:FindFirstChild("InnerUFO", true)
-        elseif objName == "Train" then
-            target = workspace.Map:FindFirstChild("Train", true) or workspace.Map:FindFirstChild("TrainEngine", true)
-        end
-        if target then
-            for _, v in ipairs(target:GetDescendants()) do
-                if v:IsA("BasePart") then
-                    v.Anchored = false
-                    v.CanCollide = true
-                    v.Velocity = Vector3.new(0, -100, 0)
-                end
-            end
-            OrionLib:MakeNotification({Name = "SmileHub", Content = objName .. " を破壊したぜ！", Time = 3})
-        else
-            OrionLib:MakeNotification({Name = "エラー", Content = objName .. " が見つからないぜ", Time = 3})
-        end
-    end)
-end
 FunTab:AddButton({ Name = "UFO落とし", Callback = function() breakObject("UFO") end })
 FunTab:AddButton({ Name = "列車落とし", Callback = function() breakObject("Train") end })
 
 -- 5. 荒らし機能（保持）
-FunTab:AddSection({ Name = "荒らし機能 (取り扱い注意)" })
-FunTab:AddLabel("食べたらオンにしてゲロかけてください")
+FunTab:AddSection({ Name = "荒らし機能" })
 local bringingEnabled = false
-FunTab:AddToggle({
-    Name = "ゲロかけALL (Bring All)",
-    Default = false,
-    Callback = function(value) bringingEnabled = value end
-})
+FunTab:AddToggle({ Name = "ゲロかけALL (Bring All)", Default = false, Callback = function(v) bringingEnabled = v end })
 
--- [[ 土星実行ループ：お前のロジックを1ミリも変えずに実装 ]]
+-- [[ 統合土星ロジック：所有権奪取 + 2モード同時実行 ]]
 task.spawn(function()
-    local parts = {}
-    local count = 20
-    local c = { Speed = 2, Size = 10, Height = 5, Back = 0, Wave = true, WaveSpeed = 2, WaveAmp = 2 }
+    local parts = {} -- 予備のパーツ
+    local c = { Speed = 2, Size = 12, Height = 5, Back = 0, WaveSpeed = 2, WaveAmp = 2 }
+    
+    -- 回転用シェイプ
     local shape = {}
     for i = 1, 36 do
         local angle = math.rad(i * 10)
@@ -1985,56 +1949,88 @@ task.spawn(function()
             local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
             if hrp then
                 local time = tick()
-                for i = 1, count do
-                    if not parts[i] then
-                        local p = Instance.new("Part", workspace)
-                        p.Size = Vector3.new(1, 1, 1)
-                        p.Anchored, p.CanCollide = true, false
-                        p.BrickColor = BrickColor.new("Bright yellow")
-                        parts[i] = p
+                local fws = {}
+                local allMyItems = {}
+
+                -- --- アイテム強奪ロジック：ここにお前のコードを完全統合 ---
+                local plotsFolder = workspace:FindFirstChild("Plots")
+                local plotItemsFolder = workspace:FindFirstChild("PlotItems")
+                local spawnedToys = workspace:FindFirstChild(myName .. "SpawnedInToys")
+
+                if spawnedToys then
+                    for _, item in ipairs(spawnedToys:GetChildren()) do table.insert(allMyItems, item) end
+                end
+
+                if plotsFolder and plotItemsFolder then
+                    for _, plot in ipairs(plotsFolder:GetChildren()) do
+                        local sign = plot:FindFirstChild("PlotSign")
+                        local ownerObj = sign and (sign:FindFirstChild("ThisPlotsOwners") or sign:FindFirstChild("Owner"))
+                        if ownerObj then
+                            local val = ownerObj:FindFirstChild("Value") or ownerObj
+                            local data = val:FindFirstChild("Data") or val
+                            if (data:IsA("StringValue") and data.Value == myName) then
+                                local targetFolder = plotItemsFolder:FindFirstChild(plot.Name)
+                                if targetFolder then
+                                    for _, item in ipairs(targetFolder:GetChildren()) do table.insert(allMyItems, item) end
+                                end
+                                break
+                            end
+                        end
                     end
-                    local mode, ratio, pos = SaturnMode, i / count, Vector3.zero
-                    if mode == "Sphere" then
-                        local phi = math.acos(-1 + (2 * i) / count)
-                        local theta = math.sqrt(count * math.pi) * phi + time * c.Speed
-                        pos = Vector3.new(c.Size * math.cos(theta) * math.sin(phi), c.Size * math.sin(theta) * math.sin(phi) + c.Height, c.Size * math.cos(phi) + c.Back)
-                    elseif mode == "Rotate" then
+                end
+
+                for _, item in ipairs(workspace:GetChildren()) do
+                    local ownerValue = item:FindFirstChild("Owner") or item:FindFirstChild("PartOwner")
+                    if item:IsA("Model") and ownerValue and ownerValue:IsA("StringValue") and ownerValue.Value == myName then
+                        if not table.find(allMyItems, item) then table.insert(allMyItems, item) end
+                    end
+                end
+
+                for _, item in ipairs(allMyItems) do
+                    if item:IsA("Model") and item.PrimaryPart then
+                        table.insert(fws, item)
+                        -- 所有権を自分にセット
+                        for _, part in ipairs(item:GetDescendants()) do
+                            if part:IsA("BasePart") then pcall(function() part:SetNetworkOwner(LP) end) end
+                        end
+                    end
+                end
+                -- --- アイテム強奪終了 ---
+
+                -- 強奪したアイテム + 予備パーツを軌道に乗せる
+                local totalItems = #fws
+                for i, item in ipairs(fws) do
+                    local pos = Vector3.zero
+                    local ratio = i / totalItems
+                    
+                    -- 同時起動：半分はSphere、半分はRotateにする、もしくはお前の好みに合わせて合成
+                    if i % 2 == 0 then
+                        -- Sphereモードの動き
+                        local phi = math.acos(-1 + (2 * i) / totalItems)
+                        local theta = math.sqrt(totalItems * math.pi) * phi + time * c.Speed
+                        pos = Vector3.new(c.Size * math.cos(theta) * math.sin(phi), c.Size * math.sin(theta) * math.sin(phi) + c.Height, c.Size * math.cos(phi))
+                    else
+                        -- Rotateモードの動き
                         local speed, totalPoints = c.Speed, #shape
                         local cycle = (time * speed * 0.1 + ratio) % 1
                         local currentStep = cycle * totalPoints
-                        local idx1, idx2 = math.floor(currentStep) % totalPoints + 1, (math.floor(currentStep) + 1) % totalPoints + 1
+                        local idx1 = math.floor(currentStep) % totalPoints + 1
+                        local idx2 = (math.floor(currentStep) + 1) % totalPoints + 1
                         local p = shape[idx1]:Lerp(shape[idx2], currentStep % 1)
                         local rotAngle = time * speed * 0.3
                         local rotX = p.X * math.cos(rotAngle) - p.Z * math.sin(rotAngle)
                         local rotZ = p.X * math.sin(rotAngle) + p.Z * math.cos(rotAngle)
-                        pos = Vector3.new(rotX * c.Size, c.Height + (math.sin(time * c.WaveSpeed + i * 0.5) * c.WaveAmp), rotZ * c.Size + c.Back)
+                        pos = Vector3.new(rotX * c.Size, c.Height + (math.sin(time * c.WaveSpeed + i * 0.5) * c.WaveAmp), rotZ * c.Size)
                     end
-                    parts[i].CFrame = hrp.CFrame * CFrame.new(pos)
+                    
+                    if item.PrimaryPart then
+                        item:SetPrimaryPartCFrame(hrp.CFrame * CFrame.new(pos))
+                    end
                 end
             end
-        else
-            for i, p in pairs(parts) do p:Destroy() parts[i] = nil end
         end
     end
-end)
-
--- [[ ゲロかけALLループ（保持） ]]
-task.spawn(function()
-    while task.wait(0.1) do
-        pcall(function()
-            local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-            if bringingEnabled and hrp then
-                local targetPos = hrp.CFrame * CFrame.new(0, 0, -3)
-                for _, p in ipairs(game.Players:GetPlayers()) do
-                    if p ~= LP and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-                        p.Character.HumanoidRootPart.CFrame = targetPos
-                    end
-                end
-            end
-        end)
-    end
-end)
--- [[ LOOPタブ：Blitz物理・リスキル統合管理 ]]
+end)-- [[ LOOPタブ：Blitz物理・リスキル統合管理 ]]
 local LoopTab = Window:MakeTab({
     Name = "LOOP",
     Icon = "rbxassetid://10427807755",
