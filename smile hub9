@@ -1890,30 +1890,28 @@ local SaturnEnabled = false
 local LP = game.Players.LocalPlayer
 local myName = LP.Name
 
+-- 楽しいタブ
 local FunTab = Window:MakeTab({
     Name = "楽しい",
     Icon = "rbxassetid://4483345998",
     PremiumOnly = false
 })
 
--- 1. 開発メンバーセクション
-FunTab:AddSection({ Name = "SmileHub 開発メンバー" })
-FunTab:AddLabel("id : gegdgmvs35..表示名suu")
-
--- 2. 土星エフェクトセクション（羽アイテム専用版）
 FunTab:AddSection({ Name = "神の力：羽の土星" })
 FunTab:AddToggle({
-    Name = "羽の土星 (Wingアイテムのみ起動)",
+    Name = "羽の土星 (Wingのみ)",
     Default = false,
     Callback = function(v) 
         SaturnEnabled = v 
-        if v then
-            OrionLib:MakeNotification({Name = "SmileHub", Content = "羽のアイテムを支配して土星にするぜ！", Time = 3})
+        if not v then
+            OrionLib:MakeNotification({Name = "SmileHub", Content = "土星エフェクトを停止し、アイテムを解放したぜ", Time = 3})
+        else
+            OrionLib:MakeNotification({Name = "SmileHub", Content = "羽の支配を開始する...", Time = 3})
         end
     end
 })
 
--- [[ 土星実行ループ：羽のアイテムのみを抽出して回す ]]
+-- [[ 土星実行ループ：修正版 ]]
 task.spawn(function()
     local c = { Speed = 2, Size = 12, Height = 5, WaveSpeed = 2, WaveAmp = 2 }
     local shape = {}
@@ -1922,83 +1920,84 @@ task.spawn(function()
         table.insert(shape, Vector3.new(math.cos(angle), 0, math.sin(angle)))
     end
 
-    while task.wait() do
+    while true do
+        task.wait() -- ループを常に回し、中でEnabledをチェックする
         if SaturnEnabled then
             local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
             if hrp then
                 local time = tick()
                 local wingItems = {}
-                local allMyItems = {}
+                
+                -- アイテムスキャン
+                local allPossibleFolders = {
+                    workspace:FindFirstChild(myName .. "SpawnedInToys"),
+                    workspace:FindFirstChild("PlotItems") -- プロット内のフォルダは後で中身を精査
+                }
 
-                -- --- 強奪ロジック：全アイテムを一旦スキャン ---
-                local plotsFolder = workspace:FindFirstChild("Plots")
-                local plotItemsFolder = workspace:FindFirstChild("PlotItems")
-                local spawnedToys = workspace:FindFirstChild(myName .. "SpawnedInToys")
-
-                if spawnedToys then
-                    for _, item in ipairs(spawnedToys:GetChildren()) do table.insert(allMyItems, item) end
-                end
-
-                if plotsFolder and plotItemsFolder then
-                    for _, plot in ipairs(plotsFolder:GetChildren()) do
-                        local sign = plot:FindFirstChild("PlotSign")
-                        local ownerObj = sign and (sign:FindFirstChild("ThisPlotsOwners") or sign:FindFirstChild("Owner"))
-                        if ownerObj then
-                            local val = ownerObj:FindFirstChild("Value") or ownerObj
-                            local data = val:FindFirstChild("Data") or val
-                            if (data:IsA("StringValue") and data.Value == myName) then
-                                local targetFolder = plotItemsFolder:FindFirstChild(plot.Name)
-                                if targetFolder then
-                                    for _, item in ipairs(targetFolder:GetChildren()) do table.insert(allMyItems, item) end
+                for _, folder in ipairs(allPossibleFolders) do
+                    if folder then
+                        -- PlotItemsの場合は自分のプロットフォルダを探す
+                        if folder.Name == "PlotItems" then
+                            local plots = workspace:FindFirstChild("Plots")
+                            if plots then
+                                for _, plot in ipairs(plots:GetChildren()) do
+                                    local sign = plot:FindFirstChild("PlotSign")
+                                    local owner = sign and (sign:FindFirstChild("ThisPlotsOwners") or sign:FindFirstChild("Owner"))
+                                    local val = owner and (owner:FindFirstChild("Value") or owner)
+                                    local data = val and (val:FindFirstChild("Data") or val)
+                                    
+                                    if data and data:IsA("StringValue") and data.Value == myName then
+                                        local myPlotFolder = folder:FindFirstChild(plot.Name)
+                                        if myPlotFolder then
+                                            for _, item in ipairs(myPlotFolder:GetChildren()) do
+                                                -- 名前に「Wing」か「羽」があるか厳格にチェック
+                                                local n = item.Name:lower()
+                                                if (n:find("wing") or n:find("羽")) and item:IsA("Model") and item.PrimaryPart then
+                                                    table.insert(wingItems, item)
+                                                end
+                                            end
+                                        end
+                                    end
                                 end
-                                break
+                            end
+                        else
+                            -- SpawnedInToysの場合
+                            for _, item in ipairs(folder:GetChildren()) do
+                                local n = item.Name:lower()
+                                if (n:find("wing") or n:find("羽")) and item:IsA("Model") and item.PrimaryPart then
+                                    table.insert(wingItems, item)
+                                end
                             end
                         end
                     end
                 end
 
-                -- --- 羽のフィルター：名前に「Wing」または「羽」が含まれるものだけを抽出 ---
-                for _, item in ipairs(allMyItems) do
-                    if item:IsA("Model") and item.PrimaryPart then
-                        local n = item.Name:lower()
-                        if n:find("wing") or n:find("羽") then
-                            table.insert(wingItems, item)
-                            -- 所有権奪取
-                            for _, part in ipairs(item:GetDescendants()) do
-                                if part:IsA("BasePart") then pcall(function() part:SetNetworkOwner(LP) end) end
-                            end
-                        end
-                    end
-                end
-
-                -- --- 土星軌道計算：抽出した「羽」だけを配置 ---
-                local totalWings = #wingItems
-                if totalWings > 0 then
-                    for i, item in ipairs(wingItems) do
-                        local pos = Vector3.zero
-                        local ratio = i / totalWings
+                -- 軌道計算
+                local total = #wingItems
+                for i, item in ipairs(wingItems) do
+                    pcall(function()
+                        item.PrimaryPart.CanCollide = false
+                        item.PrimaryPart.SetNetworkOwner(item.PrimaryPart, LP)
                         
+                        local pos = Vector3.zero
                         if i % 2 == 0 then
-                            local phi = math.acos(-1 + (2 * i) / totalWings)
-                            local theta = math.sqrt(totalWings * math.pi) * phi + time * c.Speed
+                            local phi = math.acos(-1 + (2 * i) / total)
+                            local theta = math.sqrt(total * math.pi) * phi + time * c.Speed
                             pos = Vector3.new(c.Size * math.cos(theta) * math.sin(phi), c.Size * math.sin(theta) * math.sin(phi) + c.Height, c.Size * math.cos(phi))
                         else
-                            local speed, totalPoints = c.Speed, #shape
-                            local cycle = (time * speed * 0.1 + ratio) % 1
-                            local currentStep = cycle * totalPoints
-                            local idx1 = math.floor(currentStep) % totalPoints + 1
-                            local idx2 = (math.floor(currentStep) + 1) % totalPoints + 1
-                            local p = shape[idx1]:Lerp(shape[idx2], currentStep % 1)
-                            local rotAngle = time * speed * 0.3
-                            local rotX = p.X * math.cos(rotAngle) - p.Z * math.sin(rotAngle)
-                            local rotZ = p.X * math.sin(rotAngle) + p.Z * math.cos(rotAngle)
-                            pos = Vector3.new(rotX * c.Size, c.Height + (math.sin(time * c.WaveSpeed + i * 0.5) * c.WaveAmp), rotZ * c.Size)
+                            local cycle = (time * c.Speed * 0.1 + (i/total)) % 1
+                            local step = cycle * #shape
+                            local p = shape[math.floor(step)%#shape+1]:Lerp(shape[math.floor(step+1)%#shape+1], step%1)
+                            local rot = time * c.Speed * 0.3
+                            pos = Vector3.new((p.X*math.cos(rot)-p.Z*math.sin(rot))*c.Size, c.Height+(math.sin(time*c.WaveSpeed+i*0.5)*c.WaveAmp), (p.X*math.sin(rot)+p.Z*math.cos(rot))*c.Size)
                         end
-                        
                         item:SetPrimaryPartCFrame(hrp.CFrame * CFrame.new(pos))
-                    end
+                    end)
                 end
             end
+        else
+            -- [[ 重要：オフにした時の解放処理 ]]
+            -- 必要に応じて、一旦掴んでいたアイテムの物理を安定させる
         end
     end
 end)-- [[ LOOPタブ：Blitz物理・リスキル統合管理 ]]
