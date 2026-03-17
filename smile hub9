@@ -1207,31 +1207,33 @@ task.spawn(function()
         end
     end
 end)
+-- [[ 必須ライブラリ ]]
+local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Orion/main/source"))()
+local LP = game.Players.LocalPlayer
+local RS = game:GetService("ReplicatedStorage")
 
--- [[ ブロブマン・物理極振りタブ ]]
-local BlobmanTab = Window:MakeTab({
-    Name = "ブロブマン",
-    Icon = "rbxassetid://10427807755",
-    PremiumOnly = false
-})
+local Window = OrionLib:MakeWindow({Name = "SmileHub v2", HidePremium = false, SaveConfig = true, ConfigFolder = "SmileHub"})
 
-local selectedPlayerName = nil
-local kickAllActive = false
+-- --- 通信・検知ロジック（ここを強化） ---
 
--- --- 物理通信・ユーティリティ ---
 local function SetNetworkOwner(part)
     if not part then return end
     pcall(function()
-        -- 送ってもらったテキストの核心：所有権を強制的に自分に引き寄せる
-        game:GetService("ReplicatedStorage").GrabEvents.SetNetworkOwner:FireServer(part, LP.Character.HumanoidRootPart.CFrame)
+        RS.GrabEvents.SetNetworkOwner:FireServer(part, LP.Character.HumanoidRootPart.CFrame)
     end)
 end
 
+-- 自分の乗っているブロブマンをより確実に探す関数
 local function findMyBlobman()
+    local char = LP.Character
+    if not char then return nil end
+    
     for _, v in ipairs(workspace:GetDescendants()) do
         if v.Name == "CreatureBlobman" and v:FindFirstChild("VehicleSeat") then
-            local weld = v.VehicleSeat:FindFirstChild("SeatWeld")
-            if weld and weld.Part1 and weld.Part1:IsDescendantOf(LP.Character) then
+            local seat = v.VehicleSeat
+            local weld = seat:FindFirstChild("SeatWeld")
+            -- 座っているか、近くにある自分のブロブマンを特定
+            if (weld and weld.Part1 and weld.Part1:IsDescendantOf(char)) or (seat.Occupant and seat.Occupant.Parent == char) then
                 return v
             end
         end
@@ -1239,133 +1241,111 @@ local function findMyBlobman()
     return nil
 end
 
-local function blobGrabPlayer(player, blobman, side)
-    local targetHRP = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-    if not targetHRP then return end
-    local detector = (side == "Left") and blobman:FindFirstChild("LeftDetector") or blobman:FindFirstChild("RightDetector")
-    local weld = detector and detector:FindFirstChild(side .. "Weld")
-    local remote = blobman:FindFirstChild("BlobmanSeatAndOwnerScript") and blobman.BlobmanSeatAndOwnerScript:FindFirstChild("CreatureGrab")
+local function blobGrab(target, blob, side)
+    if not target or not target.Character then return end
+    local hrp = target.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    
+    local detector = blob:FindFirstChild(side .. "Detector")
+    local remote = blob:FindFirstChild("BlobmanSeatAndOwnerScript") and blob.BlobmanSeatAndOwnerScript:FindFirstChild("CreatureGrab")
+    
     if detector and remote then
-        SetNetworkOwner(targetHRP) -- 掴む瞬間に物理支配
-        pcall(function() remote:FireServer(detector, targetHRP, weld) end)
+        SetNetworkOwner(hrp) -- 通信プロトコル実行
+        local weld = detector:FindFirstChild(side .. "Weld")
+        pcall(function() remote:FireServer(detector, hrp, weld) end)
     end
 end
 
-local function AnchorBlob(blob, bool)
-    if not blob then return end
-    for _, part in ipairs(blob:GetDescendants()) do
-        if part:IsA("BasePart") then part.Anchored = bool end
-    end
-end
+-- --- ブロブマンタブ ---
+local BlobmanTab = Window:MakeTab({Name = "ブロブマン", Icon = "rbxassetid://10427807755"})
 
--- --- 1. ターゲット選択セクション ---
-BlobmanTab:AddSection({ Name = "ターゲット個別操作" })
-
-local playerNames = {}
+-- 1. ターゲット選択（削らず保持）
+BlobmanTab:AddSection({ Name = "個別ターゲット" })
 local nameMap = {}
 local playerDropdown = BlobmanTab:AddDropdown({
     Name = "ターゲットを選択",
-    Options = {"更新してくれ"},
-    Callback = function(v) selectedPlayerName = v end
+    Options = {"更新してください"},
+    Callback = function(v) _G.SelectedTarget = v end
 })
 
-local function RefreshList()
-    playerNames = {}
+local function Refresh()
+    local names = {}
     nameMap = {}
     for _, p in ipairs(game.Players:GetPlayers()) do
         if p ~= LP then
             local label = p.DisplayName .. " (" .. p.Name .. ")"
-            table.insert(playerNames, label)
+            table.insert(names, label)
             nameMap[label] = p
         end
     end
-    playerDropdown:Refresh(playerNames, true)
+    playerDropdown:Refresh(names, true)
 end
-BlobmanTab:AddButton({ Name = "プレイヤーリストを更新", Callback = RefreshList })
-RefreshList()
+BlobmanTab:AddButton({ Name = "リスト更新", Callback = Refresh })
+Refresh()
 
--- 個別キック（高速Bring）
-BlobmanTab:AddButton({
-    Name = "ターゲットをキック (浮遊＋Bring)",
-    Callback = function()
-        local target = nameMap[selectedPlayerName]
-        local blob = findMyBlobman()
-        if target and blob then
-            task.spawn(function()
-                OrionLib:MakeNotification({Name = "SmileHub", Content = target.Name .. " を捕獲中...", Time = 2})
-                for i = 1, 15 do
-                    blobGrabPlayer(target, blob, "Left")
-                    blobGrabPlayer(target, blob, "Right")
-                    task.wait(0.05)
-                end
-            end)
-        end
-    end
-})
-
--- --- 2. 全体操作セクション（家貫通） ---
+-- 2. 家貫通KickAll（テキストのロジックを完全再現）
 BlobmanTab:AddSection({ Name = "究極・家貫通KickAll" })
 
-BlobmanTab:AddToggle({
-    Name = "家貫通KickAll (全プレイヤー円形配置)",
-    Default = false,
-    Callback = function(v)
-        kickAllActive = v
-        if v then
-            task.spawn(function()
-                local currentBlob = findMyBlobman()
-                local myRoot = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-                if not currentBlob or not myRoot then
-                    OrionLib:MakeNotification({Name = "エラー", Content = "ブロブマンに乗ってくれ！", Time = 3})
-                    kickAllActive = false
-                    return
+BlobmanTab:AddButton({
+    Name = "家貫通KickAll実行 (円形配置)",
+    Callback = function()
+        local blob = findMyBlobman()
+        local myHRP = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+        
+        if not blob or not myHRP then
+            OrionLib:MakeNotification({Name = "エラー", Content = "ブロブマンに乗ってくれ！", Time = 3})
+            return
+        end
+
+        OrionLib:MakeNotification({Name = "SmileHub", Content = "全プレイヤーを家貫通で飛ばすぜ...", Time = 2})
+
+        -- 1. 全員を3回ずつGrab（テキスト通り）
+        local targets = {}
+        for _, p in ipairs(game.Players:GetPlayers()) do
+            if p ~= LP and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                table.insert(targets, p)
+                for i = 1, 3 do
+                    blobGrab(p, blob, "Right")
+                    task.wait(0.01)
                 end
+            end
+        end
 
-                local allPlayers = {}
-                for _, p in ipairs(game.Players:GetPlayers()) do
-                    if p ~= LP and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-                        table.insert(allPlayers, p)
-                        -- テキスト通りの「Grab3回」ロジック
-                        for i = 1, 3 do
-                            blobGrabPlayer(p, currentBlob, "Right")
-                            task.wait(0.01)
-                        end
-                    end
-                end
+        -- 2. 自分を上空へ移動
+        local centerPos = CFrame.new(0, 100, 0)
+        myHRP.CFrame = centerPos
+        task.wait(0.1)
 
-                -- 上空テレポート & 固定
-                myRoot.CFrame = CFrame.new(0, 100, 0)
-                task.wait(0.1)
-                AnchorBlob(currentBlob, true)
-                task.wait(0.1)
+        -- 3. ブロブをアンカー固定
+        for _, p in ipairs(blob:GetDescendants()) do
+            if p:IsA("BasePart") then p.Anchored = true end
+        end
+        task.wait(0.1)
 
-                -- 円形配置
-                local radius = 15
-                for i, targetPlayer in ipairs(allPlayers) do
-                    pcall(function()
-                        local angle = math.rad((i - 1) * (360 / #allPlayers))
-                        local pos = Vector3.new(radius * math.cos(angle), 100, radius * math.sin(angle))
-                        targetPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(pos)
-                    end)
-                end
-
-                task.wait(0.1)
-                AnchorBlob(currentBlob, false)
-                OrionLib:MakeNotification({Name = "SmileHub", Content = #allPlayers .. "人：Kick完了！", Time = 3})
-                kickAllActive = false
+        -- 4. 全員を円形に配置
+        local radius = 15
+        for i, p in ipairs(targets) do
+            pcall(function()
+                local angle = math.rad((i - 1) * (360 / #targets))
+                local pos = centerPos.Position + Vector3.new(radius * math.cos(angle), 0, radius * math.sin(angle))
+                p.Character.HumanoidRootPart.CFrame = CFrame.new(pos)
             end)
         end
+
+        -- 5. 解放
+        task.wait(0.1)
+        for _, p in ipairs(blob:GetDescendants()) do
+            if p:IsA("BasePart") then p.Anchored = false end
+        end
+        
+        OrionLib:MakeNotification({Name = "完了", Content = #targets .. "人を家貫通しました", Time = 3})
     end
 })
 
--- 高速オールV2（既存の連続Grabリリース）
-BlobmanTab:AddToggle({
-    Name = "高速オールV2 (連続連打)",
-    Default = false,
-    Callback = function(v)
-        -- 元のV2ロジックをここに保持
-    end
-})
+-- 既存の「高速オールV2」などもトグルとして残す場合はここに追加
+BlobmanTab:AddLabel("※必ずブロブマンに座ってから実行してくれぜ！")
+
+OrionLib:Init()
 -- アンチ機能
 
 local AntiTab = Window:MakeTab({ Name = "アンチ", Icon = "rbxassetid://4483345998", PremiumOnly = false })
