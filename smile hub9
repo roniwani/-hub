@@ -1207,17 +1207,7 @@ task.spawn(function()
         end
     end
 end)
--- [[ 1. ライブラリ読み込み（最新版に修正） ]]
-local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Orion/main/source"))()
-local LP = game.Players.LocalPlayer
-local RS = game:GetService("ReplicatedStorage")
 
--- [[ 2. ウィンドウ作成（これ一つに絞る） ]]
-local Window = OrionLib:MakeWindow({
-    Name = "SmileHub KickOnly", 
-    HidePremium = false, 
-    SaveConfig = false, 
-    IntroEnabled = false -- 起動を速くするためにイントロOFF
 })
 
 -- [[ 3. 通信・検知ロジック（家貫通kickall.txtの内容を完全再現） ]]
