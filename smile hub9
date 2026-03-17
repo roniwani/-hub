@@ -1210,73 +1210,136 @@ end)
 
 })
 
+-- [[ SmileHub：自作GUI版（ライブラリ不要） ]]
+local LP = game.Players.LocalPlayer
+local RS = game:GetService("ReplicatedStorage")
+local CoreGui = game:GetService("CoreGui")
 
--- [[ 4. メインタブ作成 ]]
-local Tab = Window:MakeTab({
-    Name = "KickAll",
-    Icon = "rbxassetid://4483345998"
-})
+-- --- 1. 通信・物理ロジック（家貫通kickall.txtを100%継承） ---
+local function SetNetworkOwner(part)
+    if not part then return end
+    pcall(function()
+        RS.GrabEvents.SetNetworkOwner:FireServer(part, LP.Character.HumanoidRootPart.CFrame)
+    end)
+end
 
-Tab:AddSection({ Name = "家貫通・物理キック" })
-
-Tab:AddButton({
-    Name = "家貫通KickAll実行 (Grab3回+円形配置)",
-    Callback = function()
-        local blob = findMyBlobman()
-        local myRoot = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-        
-        if not blob or not myRoot then
-            OrionLib:MakeNotification({Name = "エラー", Content = "ブロブマンに乗ってから押せ！", Time = 3})
-            return
-        end
-
-        OrionLib:MakeNotification({Name = "SmileHub", Content = "全プレイヤーを捕獲中...", Time = 2})
-
-        -- 1. 全員を3回ずつGrab（テキスト通りの強力な連打）
-        local targets = {}
-        for _, p in ipairs(game.Players:GetPlayers()) do
-            if p ~= LP and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-                table.insert(targets, p)
-                for i = 1, 3 do
-                    blobGrab(p, blob, "Right")
-                    task.wait(0.01)
-                end
+local function findMyBlobman()
+    for _, v in ipairs(workspace:GetDescendants()) do
+        if v.Name == "CreatureBlobman" and v:FindFirstChild("VehicleSeat") then
+            local seat = v.VehicleSeat
+            local weld = seat:FindFirstChild("SeatWeld")
+            if (weld and weld.Part1 and weld.Part1:IsDescendantOf(LP.Character)) or (seat.Occupant and seat.Occupant.Parent == LP.Character) then
+                return v
             end
         end
-
-        -- 2. 上空(0, 100, 0)へ自分とブロブを移動
-        local centerPos = CFrame.new(0, 100, 0)
-        myRoot.CFrame = centerPos
-        task.wait(0.1)
-
-        -- 3. ブロブをアンカー固定（テレポート中の物理を安定させる）
-        for _, p in ipairs(blob:GetDescendants()) do
-            if p:IsA("BasePart") then p.Anchored = true end
-        end
-        task.wait(0.1)
-
-        -- 4. 全員を円形に一気に配置（家貫通）
-        local radius = 15
-        for i, p in ipairs(targets) do
-            pcall(function()
-                local angle = math.rad((i - 1) * (360 / #targets))
-                local pos = centerPos.Position + Vector3.new(radius * math.cos(angle), 0, radius * math.sin(angle))
-                p.Character.HumanoidRootPart.CFrame = CFrame.new(pos)
-            end)
-        end
-
-        -- 5. アンカー解除して落下（物理ダメージ）
-        task.wait(0.1)
-        for _, p in ipairs(blob:GetDescendants()) do
-            if p:IsA("BasePart") then p.Anchored = false end
-        end
-        
-        OrionLib:MakeNotification({Name = "成功", Content = #targets .. "人を家貫通で飛ばしたぜ！", Time = 3})
     end
-})
+    return nil
+end
 
-Tab:AddLabel("※ブロブマンの運転席に座ってから実行してくれ！")
+local function blobGrab(target, blob, side)
+    if not target or not target.Character then return end
+    local hrp = target.Character:FindFirstChild("HumanoidRootPart")
+    local detector = blob:FindFirstChild(side .. "Detector")
+    local remote = blob:FindFirstChild("BlobmanSeatAndOwnerScript") and blob.BlobmanSeatAndOwnerScript:FindFirstChild("CreatureGrab")
+    if hrp and detector and remote then
+        SetNetworkOwner(hrp)
+        local weld = detector:FindFirstChild(side .. "Weld")
+        pcall(function() remote:FireServer(detector, hrp, weld) end)
+    end
+end
 
+-- --- 2. GUIの作成（タブ形式） ---
+local sg = Instance.new("ScreenGui", CoreGui)
+sg.Name = "SmileHubCustom"
+
+local main = Instance.new("Frame", sg)
+main.Size = UDim2.new(0, 300, 0, 250)
+main.Position = UDim2.new(0.5, -150, 0.5, -125)
+main.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+main.BorderSizePixel = 2
+main.Active = true
+main.Draggable = true -- ドラッグ移動可能
+
+local title = Instance.new("TextLabel", main)
+title.Size = UDim2.new(1, 0, 0, 30)
+title.Text = "SmileHub v2 (Custom Tab)"
+title.TextColor3 = Color3.new(1, 1, 1)
+title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+
+-- タブボタン
+local tabBtn = Instance.new("TextButton", main)
+tabBtn.Size = UDim2.new(0, 100, 0, 30)
+tabBtn.Position = UDim2.new(0, 0, 0, 30)
+tabBtn.Text = "ブロブマン"
+tabBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+tabBtn.TextColor3 = Color3.new(1, 1, 1)
+
+-- コンテンツエリア
+local content = Instance.new("Frame", main)
+content.Size = UDim2.new(1, -10, 1, -70)
+content.Position = UDim2.new(0, 5, 0, 65)
+content.BackgroundTransparency = 1
+
+-- キックボタン（ここがメイン機能）
+local kickBtn = Instance.new("TextButton", content)
+kickBtn.Size = UDim2.new(1, 0, 0, 50)
+kickBtn.Text = "家貫通KickAll実行"
+kickBtn.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
+kickBtn.TextColor3 = Color3.new(1, 1, 1)
+kickBtn.TextSize = 18
+
+-- クローズボタン
+local close = Instance.new("TextButton", main)
+close.Size = UDim2.new(0, 30, 0, 30)
+close.Position = UDim2.new(1, -30, 0, 0)
+close.Text = "X"
+close.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+close.Callback = function() sg:Destroy() end
+close.MouseButton1Click:Connect(function() sg:Destroy() end)
+
+-- --- 3. キック実行処理 ---
+kickBtn.MouseButton1Click:Connect(function()
+    local blob = findMyBlobman()
+    local myRoot = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+    
+    if not blob or not myRoot then
+        kickBtn.Text = "エラー: 乗ってくれ！"
+        task.wait(2)
+        kickBtn.Text = "家貫通KickAll実行"
+        return
+    end
+
+    kickBtn.Text = "実行中..."
+    
+    local targets = {}
+    for _, p in ipairs(game.Players:GetPlayers()) do
+        if p ~= LP and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            table.insert(targets, p)
+            for i = 1, 3 do
+                blobGrab(p, blob, "Right")
+                task.wait(0.01)
+            end
+        end
+    end
+
+    myRoot.CFrame = CFrame.new(0, 100, 0)
+    task.wait(0.1)
+    for _, p in ipairs(blob:GetDescendants()) do if p:IsA("BasePart") then p.Anchored = true end end
+    
+    local radius = 15
+    for i, p in ipairs(targets) do
+        pcall(function()
+            local angle = math.rad((i - 1) * (360 / #targets))
+            p.Character.HumanoidRootPart.CFrame = CFrame.new(0, 100, 0) * CFrame.new(radius * math.cos(angle), 0, radius * math.sin(angle))
+        end)
+    end
+    task.wait(0.1)
+    for _, p in ipairs(blob:GetDescendants()) do if p:IsA("BasePart") then p.Anchored = false end end
+    
+    kickBtn.Text = "完了！ (" .. #targets .. "人)"
+    task.wait(2)
+    kickBtn.Text = "家貫通KickAll実行"
+end)
 -- [[ 5. 起動完了処理 ]]
 OrionLib:Init()-- アンチ機能
 
