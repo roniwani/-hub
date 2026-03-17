@@ -1899,36 +1899,23 @@ local FunTab = Window:MakeTab({
 -- 1. 開発メンバーセクション
 FunTab:AddSection({ Name = "SmileHub 開発メンバー" })
 FunTab:AddLabel("id : gegdgmvs35..表示名suu")
-FunTab:AddLabel("id : Hello838338383")
-FunTab:AddLabel("id : MidoriMiroru_73816")
-FunTab:AddLabel("id : ftapplayer_LOL")
 
--- 2. 土星エフェクトセクション（アイテム専用・同時起動版）
-FunTab:AddSection({ Name = "神の力：アイテム土星" })
+-- 2. 土星エフェクトセクション（羽アイテム専用版）
+FunTab:AddSection({ Name = "神の力：羽の土星" })
 FunTab:AddToggle({
-    Name = "アイテム土星 (おもちゃを軌道に乗せる)",
+    Name = "羽の土星 (Wingアイテムのみ起動)",
     Default = false,
     Callback = function(v) 
         SaturnEnabled = v 
         if v then
-            OrionLib:MakeNotification({Name = "SmileHub", Content = "自分のおもちゃを支配して土星にするぜ！", Time = 3})
+            OrionLib:MakeNotification({Name = "SmileHub", Content = "羽のアイテムを支配して土星にするぜ！", Time = 3})
         end
     end
 })
 
--- 3. お珍珍MODオプション（保持）
-FunTab:AddSection({ Name = "お珍珍MODオプション" })
-FunTab:AddToggle({ Name = "ぼっきしたちんちん", Default = false, Callback = function(v) end })
-
--- 4. 特殊アクション（保持）
-FunTab:AddSection({ Name = "特殊アクション" })
-FunTab:AddButton({ Name = "UFO落とし", Callback = function() breakObject("UFO") end })
-
--- [[ 土星実行ループ：強奪したアイテムのみを回す ]]
+-- [[ 土星実行ループ：羽のアイテムのみを抽出して回す ]]
 task.spawn(function()
     local c = { Speed = 2, Size = 12, Height = 5, WaveSpeed = 2, WaveAmp = 2 }
-    
-    -- 回転用シェイプ
     local shape = {}
     for i = 1, 36 do
         local angle = math.rad(i * 10)
@@ -1940,10 +1927,10 @@ task.spawn(function()
             local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
             if hrp then
                 local time = tick()
-                local fws = {}
+                local wingItems = {}
                 local allMyItems = {}
 
-                -- --- 強奪ロジック：自分に関連する全アイテムを収集 ---
+                -- --- 強奪ロジック：全アイテムを一旦スキャン ---
                 local plotsFolder = workspace:FindFirstChild("Plots")
                 local plotItemsFolder = workspace:FindFirstChild("PlotItems")
                 local spawnedToys = workspace:FindFirstChild(myName .. "SpawnedInToys")
@@ -1970,27 +1957,30 @@ task.spawn(function()
                     end
                 end
 
-                -- 全ての所有アイテムのNetworkOwnerを自分にしてリスト化
+                -- --- 羽のフィルター：名前に「Wing」または「羽」が含まれるものだけを抽出 ---
                 for _, item in ipairs(allMyItems) do
                     if item:IsA("Model") and item.PrimaryPart then
-                        table.insert(fws, item)
-                        for _, part in ipairs(item:GetDescendants()) do
-                            if part:IsA("BasePart") then pcall(function() part:SetNetworkOwner(LP) end) end
+                        local n = item.Name:lower()
+                        if n:find("wing") or n:find("羽") then
+                            table.insert(wingItems, item)
+                            -- 所有権奪取
+                            for _, part in ipairs(item:GetDescendants()) do
+                                if part:IsA("BasePart") then pcall(function() part:SetNetworkOwner(LP) end) end
+                            end
                         end
                     end
                 end
 
-                -- --- 土星軌道計算：強奪したアイテムを配置 ---
-                local totalItems = #fws
-                if totalItems > 0 then
-                    for i, item in ipairs(fws) do
+                -- --- 土星軌道計算：抽出した「羽」だけを配置 ---
+                local totalWings = #wingItems
+                if totalWings > 0 then
+                    for i, item in ipairs(wingItems) do
                         local pos = Vector3.zero
-                        local ratio = i / totalItems
+                        local ratio = i / totalWings
                         
-                        -- 偶数番目はSphereモード、奇数番目はRotateモードで配置
                         if i % 2 == 0 then
-                            local phi = math.acos(-1 + (2 * i) / totalItems)
-                            local theta = math.sqrt(totalItems * math.pi) * phi + time * c.Speed
+                            local phi = math.acos(-1 + (2 * i) / totalWings)
+                            local theta = math.sqrt(totalWings * math.pi) * phi + time * c.Speed
                             pos = Vector3.new(c.Size * math.cos(theta) * math.sin(phi), c.Size * math.sin(theta) * math.sin(phi) + c.Height, c.Size * math.cos(phi))
                         else
                             local speed, totalPoints = c.Speed, #shape
@@ -2005,7 +1995,6 @@ task.spawn(function()
                             pos = Vector3.new(rotX * c.Size, c.Height + (math.sin(time * c.WaveSpeed + i * 0.5) * c.WaveAmp), rotZ * c.Size)
                         end
                         
-                        -- アイテムを自分の周りの計算位置へテレポート
                         item:SetPrimaryPartCFrame(hrp.CFrame * CFrame.new(pos))
                     end
                 end
