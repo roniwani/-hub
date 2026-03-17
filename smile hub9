@@ -1208,7 +1208,7 @@ task.spawn(function()
     end
 end)
 
--- --- ブロブマンタブ作成 ---
+-- ブロブマンタブ作成 --
 local BlobmanTab = Window:MakeTab({
     Name = "ブロブマン",
     Icon = "rbxassetid://10427807755",
