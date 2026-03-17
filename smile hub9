@@ -1,4 +1,4 @@
--- [[ 1. 古いUIを消去（重複防止） ]]
+＿-- [[ 1. 古いUIを消去（重複防止） ]]
 pcall(function()
     for _, v in ipairs(game:GetService("CoreGui"):GetChildren()) do
         if v.Name == "Orion" or v:FindFirstChild("Main") then
@@ -1207,37 +1207,6 @@ task.spawn(function()
         end
     end
 end)
--- [[ 必須ライブラリ・初期設定 ]]
-local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Orion/main/source"))()
-local LP = game.Players.LocalPlayer
-local myName = LP.Name
-
--- ウィンドウ作成（すでに他で作っている場合は、この部分は飛ばしてタブ追加だけにしてくれ）
-local Window = OrionLib:MakeWindow({Name = "SmileHub v2", HidePremium = false, SaveConfig = true, ConfigFolder = "SmileHub"})
-
--- --- ユーティリティ関数 ---
-local function findMyBlobman()
-    for _, v in ipairs(workspace:GetDescendants()) do
-        if v.Name == "CreatureBlobman" and v:FindFirstChild("VehicleSeat") then
-            local weld = v.VehicleSeat:FindFirstChild("SeatWeld")
-            if weld and weld.Part1 and weld.Part1:IsDescendantOf(LP.Character) then
-                return v
-            end
-        end
-    end
-    return nil
-end
-
-local function blobGrabPlayer(player, blobman, side)
-    local targetHRP = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-    if not targetHRP then return end
-    local detector = (side == "Left") and blobman:FindFirstChild("LeftDetector") or blobman:FindFirstChild("RightDetector")
-    local weld = detector and detector:FindFirstChild(side .. "Weld")
-    local remote = blobman:FindFirstChild("BlobmanSeatAndOwnerScript") and blobman.BlobmanSeatAndOwnerScript:FindFirstChild("CreatureGrab")
-    if detector and weld and remote then
-        pcall(function() remote:FireServer(detector, targetHRP, weld) end)
-    end
-end
 
 -- --- ブロブマンタブ作成 ---
 local BlobmanTab = Window:MakeTab({
