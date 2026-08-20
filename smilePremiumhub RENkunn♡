@@ -1,0 +1,66 @@
+local OrionLib = loadstring(game:HttpGet("https://pastefy.app/G5LnmkXs/raw"))()
+
+local KeyWindow = OrionLib:MakeWindow({
+    Name = "Key System",
+    HidePremium = true,
+    SaveConfig = false,
+    IntroEnabled = true,
+    IntroText = "Key System"
+})
+
+local KeyTab = KeyWindow:MakeTab({
+    Name = "Key",
+    Icon = "rbxassetid://4483345998"
+})
+
+local inputKey = ""
+
+KeyTab:AddTextbox({
+    Name = "key",
+    Default = "",
+    TextDisappear = false,
+    Callback = function(Value)
+        inputKey = Value
+    end
+})
+
+KeyTab:AddButton({
+    Name = "get key",
+    Callback = function()
+        setclipboard("https://smilekey-kqgesdke.manus.space")
+        OrionLib:MakeNotification({
+            Name = "Copied",
+            Content = "Link copied to clipboard",
+            Time = 2
+        })
+    end
+})
+
+KeyTab:AddButton({
+    Name = "Execute key",
+    Callback = function()
+        if inputKey == "smileingkey" then
+            OrionLib:MakeNotification({
+                Name = "Success",
+                Content = "Key bypassed; launching the main script.",
+                Time = 3
+            })
+            loadstring(game:HttpGet("https://pastefy.app/Ac7Xbpet/raw"))()
+        elseif inputKey == "getKeyPremiumRENkunn♡" then
+            OrionLib:MakeNotification({
+                Name = "Success",
+                Content = "Key bypassed; launching the main script.",
+                Time = 3
+            })
+            loadstring(game:HttpGet("https://pastefy.app/JumHZPYJ/raw"))()
+        else
+            OrionLib:MakeNotification({
+                Name = "Error",
+                Content = "Invalid key",
+                Time = 2
+            })
+        end
+    end
+})
+
+OrionLib:Init()
