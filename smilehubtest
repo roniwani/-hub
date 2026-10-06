@@ -7160,7 +7160,7 @@ function connectHeartbeat()
     end
 
     heartbeatConnection = RunService.Heartbeat:Connect(function(dt)
-        applyLineSettings()
+        --applyLineSettings()
 
         syncAccumulator += dt
 
