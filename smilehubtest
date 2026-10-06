@@ -144,7 +144,7 @@ function StyleMenuUI()
                 contents.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
                 contents.BackgroundTransparency = 0.55
                 roundCorners(contents)
-                addPurpleBlueGradient(contents, 45)
+                --addPurpleBlueGradient(contents, 45)
 
                 contents.ChildAdded:Connect(function()
                     contents.BackgroundTransparency = 0
