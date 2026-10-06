@@ -7172,19 +7172,19 @@ function connectHeartbeat()
     end)
 end
 
-workspace.DescendantAdded:Connect(function(d)
-    if d:IsA('Beam') and d.Name == 'GrabBeam' then
-        task.defer(applyLineSettings)
-    elseif d:IsA('Sound') and d.Name == 'AttachSound' then
-        captureOriginalSoundId(d)
-        task.defer(applyGrabSound)
-    elseif d.Name == 'GrabPart' or d.Name == 'BeamPart' then
-        task.defer(function()
-            applyLineSettings()
-            applyGrabSound()
-        end)
-    end
-end)
+-- workspace.DescendantAdded:Connect(function(d)
+--     if d:IsA('Beam') and d.Name == 'GrabBeam' then
+--         task.defer(applyLineSettings)
+--     elseif d:IsA('Sound') and d.Name == 'AttachSound' then
+--         captureOriginalSoundId(d)
+--         task.defer(applyGrabSound)
+--     elseif d.Name == 'GrabPart' or d.Name == 'BeamPart' then
+--         task.defer(function()
+--             applyLineSettings()
+--             applyGrabSound()
+--         end)
+--     end
+-- end)
 
 local LineGroup = Tabs.Grab:AddLeftGroupbox("Line", "link")
 local PanelAssist = Tabs.Grab:AddLeftGroupbox("Gamepass", "dollar-sign")
