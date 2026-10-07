@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Luau Obfuscator</title>
+  <meta charset="UTF-8" />
+  <link rel="shortcut icon" href="img/favicon.ico" />
+  <!-- Google Font -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap"
+    rel="stylesheet"
+  />
+  <style>
+    /* GLOBAL RESET */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: "Poppins", sans-serif;
+      background: linear-gradient(115deg, #243B55 0%, #141E30 100%);
+      color: #ffffff;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* CONTAINER WITH GLASSMORPHISM */
+    #container {
+      position: relative;
+      width: 80%;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 30px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+
+      /* Fade-in animation */
+      animation: fadeIn 1s ease forwards;
+      opacity: 0;
+    }
+
+    @keyframes fadeIn {
+      to {
+        opacity: 1;
+      }
+    }
+
+    h1 {
+      text-align: center;
+      font-weight: 600;
+      margin-bottom: 20px;
+      font-size: 1.8rem;
+    }
+
+    form {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      font-size: 1rem;
+      margin-bottom: 10px;
+    }
+
+    /* SCROLLABLE TEXTAREA */
+    textarea {
+      width: 90%;
+      max-width: 800px;
+      height: 200px;
+      max-height: 300px;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      background-color: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(8px);
+      color: #ffffff;
+      font-size: 0.95rem;
+      resize: vertical;
+      outline: none;
+      transition: background 0.3s;
+      overflow-y: scroll;
+      margin-bottom: 10px;
+    }
+
+    textarea:focus {
+      background-color: rgba(255, 255, 255, 0.2);
+    }
+
+    input[type="submit"],
+    button {
+      display: inline-block;
+      background-color: rgba(246, 114, 128, 0.8);
+      color: #ffffff;
+      padding: 10px 20px;
+      margin-top: 10px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 500;
+      transition: background-color 0.3s, transform 0.3s;
+      outline: none;
+    }
+
+    input[type="submit"]:hover,
+    button:hover {
+      background-color: rgba(246, 114, 128, 1);
+      transform: translateY(-2px);
+    }
+
+    h2 {
+      text-align: center;
+      margin-top: 30px;
+      margin-bottom: 10px;
+      font-size: 1.1rem;
+      font-weight: 500;
+    }
+
+    /* SCROLLABLE PRE */
+    pre {
+      width: 90%;
+      max-width: 800px;
+      margin: 0 auto;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      background-color: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(8px);
+      border-radius: 10px;
+      padding: 20px;
+      font-family: "Courier New", monospace;
+      font-size: 0.9rem;
+      color: #ffffff;
+      user-select: none;
+      pointer-events: none;
+      transition: background 0.3s;
+      overflow-y: auto;
+      max-height: 300px;
+    }
+
+    pre:hover {
+      background-color: rgba(255, 255, 255, 0.2);
+    }
+
+    #downloadButton {
+      display: none;
+      margin: 20px auto;
+    }
+
+    /* Subtle hover scaling for #container */
+    #container:hover {
+      box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+      transition: box-shadow 0.5s ease;
+    }
+
+    /* RESPONSIVE */
+    @media screen and (max-width: 600px) {
+      #container {
+        width: 90%;
+        padding: 20px;
+      }
+
+      h1 {
+        font-size: 1.5rem;
+      }
+
+      label,
+      input[type="submit"],
+      button,
+      textarea {
+        font-size: 0.85rem;
+      }
+
+      pre {
+        font-size: 0.8rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="container">
+    <h1>WARAWARAOBF</h1>
+    <form id="luaForm">
+      <label for="luaCode">Enter Luau Code:</label>
+      <textarea
+        id="luaCode"
+        name="luaCode"
+        rows="10"
+        onfocus="clearDefaultText(this)"
+        onblur="setDefaultText(this)"
+      >Enter your Luau code here.</textarea>
+      <br />
+      <input type="submit" value="Obfuscate" />
+    </form>
+
+    <button id="downloadButton">Download Obfuscated Script</button>
+    <h2>Obfuscated Script:</h2>
+    <pre id="encodedOutput" readonly>Obfuscated code will appear here after obfuscation.</pre>
+    <h2>Made by Siratama</h2>
+    <h1>discord.gg/p00p</h1>
+  </div>
+
+<script>
+document.getElementById("luaForm").addEventListener("submit", function (event) {
+  event.preventDefault();
+  const luaCode = document.getElementById("luaCode").value;
+  const encodedOutput = document.getElementById("encodedOutput");
+  const downloadButton = document.getElementById("downloadButton");
+
+  if (luaCode.trim() === "" || luaCode === "Enter your Luau code here.") {
+    encodedOutput.textContent = "Please enter a script.";
+    downloadButton.style.display = "none";
+  } else {
+    minifyAndObfuscate(luaCode);
+  }
+});
+
+function minifyAndObfuscate(luaCode) {
+  // --- helpers ---
+  function randName(len) {
+    const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    let s = "";
+    for (let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)];
+    if (!/^[A-Za-z]/.test(s[0])) s = "a" + s.slice(1);
+    return s;
+  }
+
+  function base64EncodeUnicode(str) {
+    try {
+      return btoa(unescape(encodeURIComponent(str)));
+    } catch (e) {
+      if (typeof Buffer !== "undefined") return Buffer.from(str, "utf8").toString("base64");
+      throw e;
+    }
+  }
+
+  function pad3(n) {
+    const s = String(n);
+    return s.length === 1 ? "00" + s : s.length === 2 ? "0" + s : s;
+  }
+
+  // ASCII85 (Adobe) encoder for byte array
+  function ascii85EncodeBytes(bytes) {
+    let out = "";
+    for (let i = 0; i < bytes.length; i += 4) {
+      const chunk = [];
+      for (let j = 0; j < 4; j++) chunk.push(bytes[i + j] === undefined ? 0 : bytes[i + j] & 0xff);
+      const value = ((chunk[0] << 24) >>> 0) + ((chunk[1] << 16) >>> 0) + ((chunk[2] << 8) >>> 0) + (chunk[3] >>> 0);
+      if (value === 0 && chunk.length === 4 && (i + 3) < bytes.length) {
+        out += "z";
+      } else {
+        const chars = [];
+        let v = value;
+        for (let j = 0; j < 5; j++) {
+          chars.push(String.fromCharCode((v % 85) + 33));
+          v = Math.floor(v / 85);
+        }
+        chars.reverse();
+        // handle padding for last short chunk
+        if ((i + 4) > bytes.length) {
+          // real byte count in this final chunk
+          const real = Math.max(1, bytes.length - i);
+          out += chars.slice(0, real + 1).join("");
+        } else {
+          out += chars.join("");
+        }
+      }
+    }
+    return out;
+  }
+
+  // remove single-line comments while preserving strings and long [[..]]
+  function removeCommentsPreservingStrings(code) {
+    let out = "";
+    let i = 0;
+    const n = code.length;
+    while (i < n) {
+      const c = code[i];
+      if (c === '"' || c === "'") {
+        const q = c;
+        out += q; i++;
+        while (i < n) {
+          const ch = code[i]; out += ch; i++;
+          if (ch === "\\" && i < n) { out += code[i]; i++; }
+          else if (ch === q) break;
+        }
+      } else if (c === "[" && code[i+1] === "[") {
+        out += "[["; i += 2;
+        while (i < n) {
+          if (code[i] === "]" && code[i+1] === "]") { out += "]]"; i += 2; break; }
+          out += code[i++]
+        }
+      } else if (c === "-" && code[i+1] === "-") {
+        i += 2;
+        // consume until newline
+        while (i < n && code[i] !== "\n") i++;
+        if (i < n && code[i] === "\n") { out += "\n"; i++; }
+      } else {
+        out += c; i++;
+      }
+    }
+    return out;
+  }
+
+  // simple minify that tries not to merge identifiers incorrectly
+  function minifyLua(code) {
+    let s = code.replace(/\s+/g, " ");
+    s = s.replace(/\s*([=+\-*/%^#<>~:;,{}()\[\]])\s*/g, "$1");
+    s = s.replace(/([%w_])\s+([%w_])/g, "$1 $2");
+    return s.trim();
+  }
+
+  // generate harmless junk functions (Lua text)
+  function makeJunkLua(count) {
+    let out = "";
+    for (let i = 0; i < count; i++) {
+      const fn = randName(6);
+      const v = randName(5);
+      const n1 = Math.floor(Math.random() * 200);
+      const n2 = Math.floor(Math.random() * 50);
+      out += `local function ${fn}() local ${v}=math.floor(((${n1}+${n2})*${Math.floor(Math.random()*9+1)}-${Math.floor(Math.random()*30)})/1) return ${v} end;`;
+    }
+    return out;
+  }
+
+  // --- pipeline ---
+  const noComments = removeCommentsPreservingStrings(luaCode);
+  const minified = minifyLua(noComments);
+
+  // base64 encode
+  const b64 = base64EncodeUnicode(minified);
+
+  // escape each base64 char into \DDD
+  let escaped = "";
+  for (let i = 0; i < b64.length; i++) {
+    escaped += "\\" + pad3(b64.charCodeAt(i));
+  }
+
+  // create bytes of escaped string
+  const bytes = [];
+  for (let i = 0; i < escaped.length; i++) bytes.push(escaped.charCodeAt(i));
+
+  // ascii85 encode
+  const ascii85 = ascii85EncodeBytes(bytes);
+
+  // randomize some names for Lua loader
+  const nameHttp = randName(8);
+  const namePayload = randName(6);
+  const nameDec = randName(7);
+  const nameUnesc = randName(6);
+  const nameLoad = randName(6);
+  const nameJunkCall = randName(6);
+
+  // junk Lua inserted inside loader
+  const junkLua = makeJunkLua(3);
+
+  // build one-line Lua loader (obfuscated names, no comments)
+  // this loader includes an ASCII85 decoder and unescape routine, all minimized and one-line
+  const luaLoader = `([[ This Script is Protected by WARAWARAOBF ]]):gsub(".+",function(a)_a=a end) return(function(...)local ${nameHttp}=game:GetService("HttpService")local ${namePayload}="${ascii85}"local function ${nameDec}(s)local t={}local i=1;local n=#s;while i<=n do local c=s:sub(i,i);if c=="z" then t[#t+1]=string.char(0,0,0,0);i=i+1;elseif c>="!" and c<="u" then local b={}while #b<5 and i<=n do local ch=s:sub(i,i);if ch=="z" then break end;if ch>="!" and ch<="u" then b[#b+1]=ch;i=i+1;else i=i+1 end end;if #b>0 then for j=#b+1,5 do b[j]="!" end;local v=0;for j=1,5 do v=v*85+(string.byte(b[j])-33) end;local b1=math.floor(v/16777216)%256;local b2=math.floor(v/65536)%256;local b3=math.floor(v/256)%256;local b4=v%256;local bytes={b1,b2,b3,b4};local keep=(#b==5) and 4 or (#b-1);for k=1,keep do t[#t+1]=string.char(bytes[k]) end end;else i=i+1 end end;return table.concat(t)end;local function ${nameUnesc}(s)return s:gsub("\\\\(%d%d%d)",function(d)return string.char(tonumber(d))end)end;${junkLua}local ok,res=pcall(function(...)local a=${nameDec}(${namePayload});local b=${nameUnesc}(a);local c=${nameHttp}:Base64Decode(b);local f=loadstring(c);return f and f(...) or nil end,...)if not ok then pcall(function() warn(("e%03d"):format((#c or 0)%97+1),res) end)end end)(...)`;
+
+  // display and enable download
+  document.getElementById("encodedOutput").textContent = luaLoader;
+  const dl = document.getElementById("downloadButton");
+  dl.style.display = "inline-block";
+  dl.onclick = function () {
+    const blob = new Blob([luaLoader], { type: "text/plain;charset=utf-8" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "Protected_by_WARAWARAOBF.txt";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+}
+
+// default text helpers
+function clearDefaultText(element) {
+  if (element.value === "Enter your Luau code here.") element.value = "";
+}
+function setDefaultText(element) {
+  if (element.value === "") element.value = "Enter your Luau code here.";
+}
+</script>
+</body>
+</html>
