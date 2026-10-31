@@ -1045,7 +1045,7 @@ function handleMessage(sender, text)
     elseif cmd == '.reveal' then
         for _, target in ipairs(targets)do
             if target == LocalPlayer then
-                sendToChat('Im an VIZER user son')
+                sendToChat('Im an smile user son')
             end
         end
     elseif cmd == '.blind' then
@@ -1488,10 +1488,10 @@ Workspace = workspace
 LocalPlayer = Players.LocalPlayer
 dick2 = Instance.new('Folder')
 dick2.Parent = workspace
-dick2.Name = '<b>VIZER</b>'
+dick2.Name = '<b>smile</b>'
 dick3 = Instance.new('Folder')
 dick3.Parent = workspace
-dick3.Name = '<b>VIZER</b>'
+dick3.Name = '<b>smile</b>'
 bjlist = {}
 joinland = {}
 currantplrlist = {}
