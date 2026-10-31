@@ -1,4 +1,4 @@
--- vizer https://discord.gg/wzuRa8B3r discord vizer
+-- smile https://discord.gg/mFbzWhB8Z7 discord smile
 
 Players = game:GetService('Players')
 LocalPlayer = Players.LocalPlayer
